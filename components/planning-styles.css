@@ -1,0 +1,128 @@
+/* Styles personnalisés pour react-big-calendar */
+.ecodeli-calendar {
+    font-family: inherit;
+  }
+  
+  /* En-têtes */
+  .ecodeli-calendar .rbc-header {
+    padding: 12px 3px;
+    font-weight: 600;
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  /* Aujourd'hui */
+  .ecodeli-calendar .rbc-today {
+    background-color: rgba(140, 215, 144, 0.1);
+  }
+  
+  /* Cellules */
+  .ecodeli-calendar .rbc-month-view,
+  .ecodeli-calendar .rbc-time-view {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+  }
+  
+  .ecodeli-calendar .rbc-day-bg + .rbc-day-bg,
+  .ecodeli-calendar .rbc-month-row + .rbc-month-row {
+    border-color: #e5e7eb;
+  }
+  
+  .ecodeli-calendar .rbc-time-content > * + * > * {
+    border-left: 1px solid #e5e7eb;
+  }
+  
+  .ecodeli-calendar .rbc-time-content {
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .ecodeli-calendar .rbc-timeslot-group {
+    border-bottom: 1px solid #f3f4f6;
+  }
+  
+  /* Événements */
+  .ecodeli-calendar .rbc-event {
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+  }
+  
+  .ecodeli-calendar .rbc-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .ecodeli-calendar .rbc-event-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  
+  .ecodeli-calendar .rbc-event-content {
+    font-size: 0.875rem;
+  }
+  
+  /* Boutons de navigation */
+  .ecodeli-calendar .rbc-btn-group {
+    display: flex;
+    gap: 4px;
+  }
+  
+  .ecodeli-calendar .rbc-btn-group button {
+    border-radius: 6px;
+    padding: 6px 12px;
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .ecodeli-calendar .rbc-btn-group button:hover {
+    background-color: #f9fafb;
+  }
+  
+  .ecodeli-calendar .rbc-btn-group button.rbc-active {
+    background-color: #8cd790;
+    color: white;
+    border-color: #7ac57e;
+  }
+  
+  .ecodeli-calendar .rbc-btn-group button.rbc-active:hover {
+    background-color: #7ac57e;
+  }
+  
+  /* Sélection de date */
+  .ecodeli-calendar .rbc-date-cell {
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 0.875rem;
+  }
+  
+  .ecodeli-calendar .rbc-off-range-bg {
+    background-color: #f9fafb;
+  }
+  
+  .ecodeli-calendar .rbc-off-range {
+    color: #9ca3af;
+  }
+  
+  /* Heure actuelle */
+  .ecodeli-calendar .rbc-current-time-indicator {
+    background-color: #8cd790;
+    height: 2px;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .ecodeli-calendar .rbc-toolbar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  
+    .ecodeli-calendar .rbc-toolbar .rbc-toolbar-label {
+      margin: 8px 0;
+    }
+  }
+  
