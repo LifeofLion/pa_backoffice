@@ -132,6 +132,7 @@ export const PACKAGE_ROUTES = {
  * Routes livraisons
  */
 export const DELIVERY_ROUTES = {
+  ALL: '/livraisons',
   BY_ID: (id: string) => `/livraisons/${id}`,
   UPDATE: (id: string) => `/livraisons/${id}`,
   BY_CLIENT: (clientId: string) => `/livraisons/client/${clientId}`,
@@ -171,7 +172,7 @@ export const COMPLAINT_ROUTES = {
 } as const
 
 /**
- * Routes services
+ * Routes services (COMPLET - Client Multi-Rôles)
  */
 export const SERVICE_ROUTES = {
   INDEX: '/services/',
@@ -179,6 +180,12 @@ export const SERVICE_ROUTES = {
   BY_ID: (id: string) => `/services/${id}`,
   UPDATE: (id: string) => `/services/${id}`,
   DELETE: (id: string) => `/services/${id}`,
+  
+  // 🚀 NOUVEAU: Routes Client Prestataire
+  COMPLETE_SERVICE_AND_DISTRIBUTE_PAYMENT: (id: string) => `/services/${id}/complete-and-distribute`,
+  GET_PROVIDER_EARNINGS: '/services/provider-earnings',
+  GET_PENDING_PAYMENT_SERVICES: '/services/pending-payments',
+  GET_PROVIDER_DASHBOARD: '/services/provider-dashboard',
   
   // Géolocalisation
   NEARBY: (lat: number, lng: number, radius: number) => 
@@ -234,18 +241,20 @@ export const TRACKING_ROUTES = {
   LIVRAISON_TRACKING: (livraisonId: string) => `/tracking/livraison/${livraisonId}`,
   ACTIVE_LIVREURS: '/tracking/active-livreurs',
   
+  // ❌ ROUTES NON DISPONIBLES DANS LE BACKEND - COMMENTÉES
   // Temps réel
-  CALCULATE_ETA: (livraisonId: string) => `/tracking/real-time/eta/${livraisonId}`,
-  TRAFFIC_CONDITIONS: (routeId: string) => `/tracking/real-time/traffic/${routeId}`,
-  REPORT_DETOUR: '/tracking/real-time/detour-alert',
-  PREDICT_DELIVERY_TIME: (livraisonId: string) => `/tracking/predictions/delivery-time/${livraisonId}`,
-  PREDICT_OPTIMAL_ROUTE: (startLat: number, startLng: number, endLat: number, endLng: number) =>
-    `/tracking/predictions/optimal-route/${startLat}/${startLng}/${endLat}/${endLng}`,
+  // CALCULATE_ETA: (livraisonId: string) => `/tracking/real-time/eta/${livraisonId}`,
+  // TRAFFIC_CONDITIONS: (routeId: string) => `/tracking/real-time/traffic/${routeId}`,
+  // REPORT_DETOUR: '/tracking/real-time/detour-alert',
+  // PREDICT_DELIVERY_TIME: (livraisonId: string) => `/tracking/predictions/delivery-time/${livraisonId}`,
+  // PREDICT_OPTIMAL_ROUTE: (startLat: number, startLng: number, endLat: number, endLng: number) =>
+  //   `/tracking/predictions/optimal-route/${startLat}/${startLng}/${endLat}/${endLng}`,
   
+  // ❌ ROUTES NON DISPONIBLES DANS LE BACKEND - COMMENTÉES
   // Map
-  LIVE_POSITIONS: '/tracking/map/live-positions',
-  ACTIVE_ROUTES: '/tracking/map/routes/active',
-  GEOFENCES: '/tracking/map/geofences',
+  // LIVE_POSITIONS: '/tracking/map/live-positions',
+  // ACTIVE_ROUTES: '/tracking/map/routes/active',
+  // GEOFENCES: '/tracking/map/geofences',
 } as const
 
 /**
@@ -324,6 +333,7 @@ export const TEMP_CODE_ROUTES = {
   GENERATE: '/codes-temporaire/generate-code',
   CHECK: '/codes-temporaire/check-code', 
   RESET: '/codes-temporaire/reset-code',
+  VALIDATE_DELIVERY: '/codes-temporaire/validate-delivery',
 } as const
 
 /**
@@ -331,6 +341,102 @@ export const TEMP_CODE_ROUTES = {
  */
 export const EMAIL_ROUTES = {
   SEND: '/send-email',
+} as const
+
+/**
+ * Routes Stripe (NOUVEAU - Alignement avec backend)
+ */
+export const STRIPE_ROUTES = {
+  // Abonnements
+  PLANS: '/stripe/plans',
+  SUBSCRIBE: '/stripe/subscribe',
+  CANCEL_SUBSCRIPTION: '/stripe/cancel-subscription',
+  CUSTOMER_PORTAL: '/stripe/customer-portal',
+  GET_SUBSCRIPTION: (userId: string) => `/stripe/subscription/${userId}`,
+  UPDATE_SUBSCRIPTION: (subscriptionId: string) => `/stripe/subscription/${subscriptionId}`,
+  
+  // Paiements directs (livraisons/services)
+  CREATE_PAYMENT_INTENT: '/stripe/create-payment-intent',
+  CONFIRM_PAYMENT: '/stripe/confirm-payment',
+  CAPTURE_PAYMENT: '/stripe/capture-payment',
+  REFUND_PAYMENT: '/stripe/refund-payment',
+  
+  // 🚀 NOUVEAU: Paiements Client Multi-Rôles avec Cagnotte
+  CREATE_LIVRAISON_PAYMENT_WITH_WALLET: '/stripe/create-livraison-payment-with-wallet',
+  CREATE_SERVICE_PAYMENT_WITH_WALLET: '/stripe/create-service-payment-with-wallet',
+  GET_CLIENT_WALLET_BALANCE: '/stripe/get-client-wallet-balance',
+  
+  // Stripe Connect (pour livreurs/prestataires)
+  CREATE_CONNECTED_ACCOUNT: '/stripe/create-connected-account',
+  GET_ONBOARDING_LINK: '/stripe/onboarding-link',
+  GET_ACCOUNT_STATUS: (accountId: string) => `/stripe/account-status/${accountId}`,
+  CREATE_EXPRESS_DASHBOARD_LINK: (accountId: string) => `/stripe/express-dashboard/${accountId}`,
+  
+  // 🚀 NOUVEAU: Routes Stripe Connect (alignées sur backend)
+  STRIPE_CONNECT_CREATE_ACCOUNT: '/stripe-connect/create-account',
+  STRIPE_CONNECT_ONBOARDING_LINK: '/stripe-connect/onboarding-link',
+  STRIPE_CONNECT_ACCOUNT_STATUS: '/stripe-connect/account-status',
+  STRIPE_CONNECT_TRANSFER_FROM_WALLET: '/stripe-connect/transfer-from-wallet',
+  STRIPE_CONNECT_DASHBOARD_LINK: '/stripe-connect/dashboard-link',
+  STRIPE_CONNECT_CONFIGURE_PAYOUTS: '/stripe-connect/configure-payouts',
+  
+  // 🚀 NOUVEAU: Routes Stripe Connect Client Multi-Rôles
+  STRIPE_CONNECT_CLIENT_CREATE_ACCOUNT: '/stripe-connect/client/create-account',
+  STRIPE_CONNECT_CLIENT_ONBOARDING_LINK: '/stripe-connect/client/onboarding-link',
+  STRIPE_CONNECT_CLIENT_ACCOUNT_STATUS: '/stripe-connect/client/account-status',
+  STRIPE_CONNECT_CLIENT_TRANSFER_FROM_WALLET: '/stripe-connect/client/transfer-from-wallet',
+  STRIPE_CONNECT_CLIENT_DASHBOARD_LINK: '/stripe-connect/client/dashboard-link',
+  
+  // Paiements avec commissions (Connect)
+  CREATE_DELIVERY_PAYMENT: '/stripe/payments/delivery',
+  CREATE_SERVICE_PAYMENT: '/stripe/payments/service',
+  CREATE_LIVRAISON_PAYMENT: '/stripe/payments/livraison',
+  TRANSFER_TO_PROVIDER: '/stripe/transfer-to-provider',
+  
+  // Facturation et invoices
+  CREATE_INVOICE: '/stripe/create-invoice',
+  SEND_INVOICE: (invoiceId: string) => `/stripe/send-invoice/${invoiceId}`,
+  GET_INVOICES: (customerId: string) => `/stripe/invoices/${customerId}`,
+  
+  // Webhooks
+  WEBHOOK: '/stripe/webhook',
+  
+  // Admin/Analytics
+  GET_REVENUE_ANALYTICS: '/stripe/admin/revenue-analytics',
+  GET_COMMISSION_REPORT: '/stripe/admin/commission-report',
+  GET_SUBSCRIPTION_ANALYTICS: '/stripe/admin/subscription-analytics',
+} as const
+
+/**
+ * Routes Portefeuille EcoDeli (COMPLET - Client Multi-Rôles)
+ */
+export const WALLET_ROUTES = {
+  // Portefeuille utilisateur général
+  GET_BY_USER: (userId: string) => `/portefeuille/user/${userId}`,
+  SHOW: '/portefeuille/show',
+  
+  // 🚀 NOUVEAU: Routes Client Multi-Rôles
+  // Recharge cagnotte
+  RECHARGER_CAGNOTTE: '/portefeuille/recharger-cagnotte',
+  CONFIRMER_RECHARGE_CAGNOTTE: '/portefeuille/confirmer-recharge-cagnotte',
+  
+  // Paiements depuis cagnotte
+  PAYER_DEPUIS_CAGNOTTE: '/portefeuille/payer-depuis-cagnotte',
+  
+  // Gains prestataires
+  GAINS_PRESTATAIRE: '/portefeuille/gains-prestataire',
+  
+  // Configuration virement automatique
+  CONFIGURE_AUTO_TRANSFER: (userId: string) => `/portefeuille/user/${userId}/configure-virement`,
+  DISABLE_AUTO_TRANSFER: (userId: string) => `/portefeuille/user/${userId}/desactiver-virement`,
+  
+  // Virements manuels
+  REQUEST_TRANSFER: (userId: string) => `/portefeuille/user/${userId}/demander-virement`,
+  
+  // Historique et statistiques
+  GET_HISTORY: (userId: string) => `/portefeuille/user/${userId}/historique`,
+  HISTORIQUE: '/portefeuille/historique',
+  GET_STATISTICS: '/portefeuille/statistiques',
 } as const
 
 // =============================================================================
@@ -360,6 +466,8 @@ export function getRoutesByRole(role: UserRole) {
         complaints: COMPLAINT_ROUTES,
         services: SERVICE_ROUTES,
         tracking: TRACKING_ROUTES,
+        stripe: STRIPE_ROUTES,
+        wallet: WALLET_ROUTES,
       }
     
     case 'delivery_man':
@@ -371,6 +479,7 @@ export function getRoutesByRole(role: UserRole) {
         messages: MESSAGE_ROUTES,
         tracking: TRACKING_ROUTES,
         packages: PACKAGE_ROUTES,
+        stripe: STRIPE_ROUTES,
       }
     
     case 'service_provider':
@@ -382,6 +491,7 @@ export function getRoutesByRole(role: UserRole) {
         serviceTypes: SERVICE_TYPE_ROUTES,
         messages: MESSAGE_ROUTES,
         justifications: JUSTIFICATION_ROUTES,
+        stripe: STRIPE_ROUTES,
       }
     
     case 'shopkeeper':
@@ -392,6 +502,7 @@ export function getRoutesByRole(role: UserRole) {
         announcements: ANNOUNCEMENT_ROUTES,
         messages: MESSAGE_ROUTES,
         justifications: JUSTIFICATION_ROUTES,
+        stripe: STRIPE_ROUTES,
       }
     
     case 'admin':
@@ -408,6 +519,7 @@ export function getRoutesByRole(role: UserRole) {
         warehouses: WAREHOUSE_ROUTES,
         subscriptions: SUBSCRIPTION_ROUTES,
         justifications: JUSTIFICATION_ROUTES,
+        stripe: STRIPE_ROUTES,
       }
     
     default:
@@ -445,4 +557,6 @@ export const API_ROUTES = {
   FILE: FILE_ROUTES,
   TEMP_CODE: TEMP_CODE_ROUTES,
   EMAIL: EMAIL_ROUTES,
+  STRIPE: STRIPE_ROUTES,
+  WALLET: WALLET_ROUTES,
 } as const 

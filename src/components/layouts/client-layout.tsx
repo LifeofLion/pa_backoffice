@@ -52,6 +52,11 @@ export default function ClientLayout({ children, activeRoute }: ClientLayoutProp
       key: 'tracking'
     },
     {
+      href: '/app_client/wallet',
+      label: t('navigation.wallet') || 'Mon Portefeuille',
+      key: 'wallet'
+    },
+    {
       href: '/app_client/payments', 
       label: t('navigation.myPayments'),
       key: 'payments'

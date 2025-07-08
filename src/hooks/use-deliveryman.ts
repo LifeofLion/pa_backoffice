@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiClient, getErrorMessage } from '@/src/lib/api'
+import { API_ROUTES } from '@/src/lib/api-routes'
 import { trackingWebSocketService } from '@/src/services/tracking/websocket-service'
 import { useAuth } from './use-auth'
 import { getUserRole } from '@/src/types'
@@ -7,6 +8,16 @@ import { getUserRole } from '@/src/types'
 // =============================================================================
 // TYPES POUR LES LIVREURS
 // =============================================================================
+
+// Types pour les réponses API
+interface ApiLivraisonsResponse {
+  livraisons?: {
+    data: any[]
+    meta?: any
+  }
+  data?: any[]
+  [key: string]: any
+}
 
 export interface Livraison {
   id: string
@@ -21,18 +32,25 @@ export interface Livraison {
   }
   colis: {
     id: string
-    trackingNumber: string
-    contentDescription: string
+    description: string
     weight: number
-    dimensions: string
+    status: string
   }[]
-  estimatedPickupTime?: string
   estimatedDeliveryTime?: string
-  actualPickupTime?: string
-  actualDeliveryTime?: string
-  distance?: number
   amount?: number
-  instructions?: string
+  title?: string
+  priority?: string | boolean
+  annonce?: {
+    id: number
+    title: string
+    description?: string
+    price: number
+    desired_date?: string
+    start_location: string
+    end_location: string
+    priority: boolean
+    status: string
+  }
 }
 
 export interface LivreurPosition {
@@ -90,43 +108,112 @@ export function useDeliveryman() {
         return
       }
 
-      // Récupérer les livraisons du livreur via l'API
-      const response = await apiClient.get(`/livreurs/${user.livreur?.id}/livraisons`)
-      console.log('📦 Livraisons livreur:', response)
+      const response = await apiClient.get(`${API_ROUTES.DELIVERYMAN.LIVRAISONS(user.livreur?.id)}?include=annonce,client,colis`) as ApiLivraisonsResponse
+      
+      const livraisonsData = response.livraisons?.data || response.data || (Array.isArray(response) ? response : [])
+      if (!Array.isArray(livraisonsData)) {
+        setError('Format de données invalide reçu du serveur')
+        return
+      }
 
-      // Transformer les données pour le frontend
-      const transformedLivraisons: Livraison[] = response.map((livraison: any) => ({
-        id: livraison.id.toString(),
-        status: livraison.status,
-        pickupLocation: livraison.pickupLocation,
-        dropoffLocation: livraison.dropoffLocation,
-        clientId: livraison.clientId?.toString() || '',
-        client: {
-          name: livraison.client ? `${livraison.client.user.first_name} ${livraison.client.user.last_name}` : 'Client',
-          phone: livraison.client?.user?.phone_number,
-          address: livraison.dropoffLocation
-        },
-        colis: livraison.colis?.map((colis: any) => ({
-          id: colis.id.toString(),
-          trackingNumber: colis.trackingNumber,
-          contentDescription: colis.contentDescription,
-          weight: colis.weight,
-          dimensions: `${colis.length}x${colis.width}x${colis.height}`
-        })) || [],
-        estimatedPickupTime: livraison.estimatedPickupTime,
-        estimatedDeliveryTime: livraison.estimatedDeliveryTime,
-        actualPickupTime: livraison.actualPickupTime,
-        actualDeliveryTime: livraison.actualDeliveryTime,
-        amount: livraison.amount,
-        instructions: livraison.instructions
-      }))
+      const transformedLivraisons: Livraison[] = livraisonsData.map((livraison: any) => {
+        console.log('🔍 Debug livraison brute:', livraison)
+        console.log('🔍 Debug livraison.annonce:', livraison.annonce)
+        console.log('🔍 Debug livraison.annonceId:', livraison.annonceId || livraison.annonce_id)
+        console.log('🔍 Debug livraison.colis:', livraison.colis)
+        
+        let pickupLocation = 'Adresse de récupération'
+        let dropoffLocation = 'Adresse de livraison'
+        let amount = livraison.amount || 0
+        let estimatedDeliveryTime = livraison.estimatedDeliveryTime || livraison.estimated_delivery_time
+        let title = `Livraison #${livraison.id || 'N/A'}`
+        
+        if (livraison.annonce) {
+          console.log('📍 Utilisation des données de l\'annonce directe')
+          console.log('💰 Prix annonce:', livraison.annonce.price)
+          console.log('📅 Date désirée annonce:', livraison.annonce.desired_date)
+          console.log('🏷️ Titre annonce:', livraison.annonce.title)
+          
+          pickupLocation = livraison.annonce.start_location || livraison.annonce.startLocation || pickupLocation
+          dropoffLocation = livraison.annonce.end_location || livraison.annonce.endLocation || dropoffLocation
+          amount = Number(livraison.annonce.price) || amount
+          estimatedDeliveryTime = livraison.annonce.desired_date || livraison.annonce.desiredDate || estimatedDeliveryTime
+          title = livraison.annonce.title || title
+        }
+        
+        // Si pas d'annonce directe, essayer via les colis (fallback)
+        else if (livraison.colis && livraison.colis.length > 0 && livraison.colis[0].annonce) {
+          console.log('📍 Utilisation des données de l\'annonce via colis')
+          const annonceViaColis = livraison.colis[0].annonce
+          console.log('💰 Prix annonce via colis:', annonceViaColis.price)
+          console.log('📅 Date désirée annonce via colis:', annonceViaColis.desired_date)
+          console.log('🏷️ Titre annonce via colis:', annonceViaColis.title)
+          
+          pickupLocation = annonceViaColis.start_location || annonceViaColis.startLocation || pickupLocation
+          dropoffLocation = annonceViaColis.end_location || annonceViaColis.endLocation || dropoffLocation
+          amount = Number(annonceViaColis.price) || amount
+          estimatedDeliveryTime = annonceViaColis.desired_date || annonceViaColis.desiredDate || estimatedDeliveryTime
+          title = annonceViaColis.title || title
+        }
+        
+        // Utiliser le prix de la livraison si disponible (priorité)
+        if (livraison.price) {
+          console.log('💰 Utilisation du prix de la livraison:', livraison.price)
+          amount = Number(livraison.price)
+        }
+        
+        // Utiliser les adresses de la livraison si disponibles (fallback final)
+        if (livraison.pickupLocation || livraison.pickup_location) {
+          pickupLocation = livraison.pickupLocation || livraison.pickup_location
+        }
+        if (livraison.dropoffLocation || livraison.dropoff_location) {
+          dropoffLocation = livraison.dropoffLocation || livraison.dropoff_location
+        }
+
+        console.log('✅ Données finales transformées:', {
+          title,
+          pickupLocation,
+          dropoffLocation,
+          amount,
+          estimatedDeliveryTime
+        })
+
+        return {
+          id: livraison.id ? livraison.id.toString() : '',
+          status: livraison.status,
+          pickupLocation,
+          dropoffLocation,
+          clientId: livraison.clientId?.toString() || livraison.client_id?.toString() || '',
+          client: {
+            name: livraison.client ? 
+              `${livraison.client.user?.first_name || livraison.client.first_name || ''} ${livraison.client.user?.last_name || livraison.client.last_name || ''}`.trim() ||
+              `${livraison.client.firstName || ''} ${livraison.client.lastName || ''}`.trim() ||
+              'Client' : 'Client',
+            phone: livraison.client?.user?.phone_number || livraison.client?.phone_number || livraison.client?.phone,
+            address: dropoffLocation
+          },
+          colis: livraison.colis?.map((coli: any) => ({
+            id: coli.id ? coli.id.toString() : '',
+            description: coli.description || 'Colis',
+            weight: coli.weight || 0,
+            status: coli.status || 'pending'
+          })) || [],
+          amount,
+          estimatedDeliveryTime,
+          title,
+          priority: livraison.annonce?.priority || 
+                   (livraison.colis && livraison.colis[0]?.annonce?.priority) || 
+                   'normal'
+        }
+      })
 
       setMyLivraisons(transformedLivraisons)
+      setError(null)
 
     } catch (error) {
       const errorMessage = getErrorMessage(error)
       setError(`Erreur chargement livraisons: ${errorMessage}`)
-      console.error('❌ Erreur chargement livraisons:', error)
+      setMyLivraisons([])
     } finally {
       setLoading(false)
     }
@@ -136,25 +223,30 @@ export function useDeliveryman() {
     if (!user) return
 
     try {
-      const response = await apiClient.get('/livreurs/available-livraisons')
-      console.log('📦 Livraisons disponibles:', response)
+      const response = await apiClient.get(API_ROUTES.DELIVERYMAN.AVAILABLE_LIVRAISONS) as ApiLivraisonsResponse
+      
+      const availableData = response.livraisons?.data || response.data || (Array.isArray(response) ? response : [])
+      if (!Array.isArray(availableData)) {
+        setAvailableLivraisons([])
+        return
+      }
 
-      const transformedAvailable: AvailableLivraison[] = response.map((livraison: any) => ({
+      const transformedAvailable: AvailableLivraison[] = availableData.map((livraison: any) => ({
         id: livraison.id.toString(),
-        pickupLocation: livraison.pickupLocation,
-        dropoffLocation: livraison.dropoffLocation,
+        pickupLocation: livraison.pickupLocation || livraison.pickup_location || 'Adresse de récupération',
+        dropoffLocation: livraison.dropoffLocation || livraison.dropoff_location || 'Adresse de livraison',
         distance: livraison.distance || 0,
-        estimatedDuration: livraison.estimatedDuration || 60,
+        estimatedDuration: livraison.estimatedDuration || livraison.estimated_duration || 60,
         amount: livraison.amount || 0,
-        packageCount: livraison.colis?.length || 1,
+        packageCount: livraison.colis?.length || livraison.package_count || 1,
         priority: livraison.priority || 'normal',
-        scheduledDate: livraison.scheduledDate || new Date().toISOString()
+        scheduledDate: livraison.scheduledDate || livraison.scheduled_date || new Date().toISOString()
       }))
 
       setAvailableLivraisons(transformedAvailable)
 
     } catch (error) {
-      console.error('❌ Erreur chargement livraisons disponibles:', error)
+      setAvailableLivraisons([])
     }
   }, [user])
 
@@ -167,18 +259,48 @@ export function useDeliveryman() {
 
     try {
       setLoading(true)
-      await apiClient.post(`/livreurs/${user.livreur.id}/livraisons/${livraisonId}/accept`)
       
-      // Recharger les livraisons
+      const acceptResponse = await apiClient.post(API_ROUTES.DELIVERYMAN.ACCEPT_LIVRAISON(user.livreur.id, livraisonId))
+      
+      const livraisonDetails = await apiClient.get(API_ROUTES.DELIVERY.BY_ID(livraisonId)) as any
+      const clientId = livraisonDetails.client?.utilisateur_id || livraisonDetails.client_id
+      
+      if (clientId) {
+        try {
+          const messageData = {
+            senderId: user.id,
+            receiverId: clientId,
+            content: `Bonjour, je suis votre livreur pour la commande #${livraisonId}. Je viens d'accepter votre livraison et je vais bientôt récupérer votre colis. N'hésitez pas à me contacter si vous avez des questions.`,
+            tempId: `auto_${Date.now()}`
+          }
+          
+          await apiClient.sendMessage(messageData)
+        } catch (msgError) {
+          console.error('⚠️ Erreur création conversation (non bloquant):', msgError)
+        }
+      }
+      
+      if (livraisonDetails.colis && Array.isArray(livraisonDetails.colis)) {
+        for (const colis of livraisonDetails.colis) {
+          try {
+            const trackingNumber = colis.tracking_number || colis.trackingNumber || `ECO-${colis.id}`
+            await apiClient.updatePackageLocation(trackingNumber, {
+              status: 'in_transit',
+              location: 'Pris en charge par le livreur',
+              livreur_id: user.livreur.id
+            })
+          } catch (colisError) {
+            console.error('⚠️ Erreur mise à jour colis (non bloquant):', colisError)
+          }
+        }
+      }
+      
       await loadMyLivraisons()
       await loadAvailableLivraisons()
-      
-      console.log('✅ Livraison acceptée:', livraisonId)
 
     } catch (error) {
       const errorMessage = getErrorMessage(error)
       setError(`Erreur acceptation livraison: ${errorMessage}`)
-      console.error('❌ Erreur acceptation livraison:', error)
     } finally {
       setLoading(false)
     }
@@ -201,17 +323,12 @@ export function useDeliveryman() {
         updateData.timestamp = new Date().toISOString()
       }
 
-      await apiClient.put(`/livreurs/${user.livreur.id}/livraisons/${livraisonId}/status`, updateData)
-      
-      // Recharger les livraisons
+      await apiClient.put(API_ROUTES.DELIVERYMAN.UPDATE_LIVRAISON_STATUS(user.livreur.id, livraisonId), updateData)
       await loadMyLivraisons()
-      
-      console.log('✅ Statut livraison mis à jour:', livraisonId, newStatus)
 
     } catch (error) {
       const errorMessage = getErrorMessage(error)
       setError(`Erreur mise à jour statut: ${errorMessage}`)
-      console.error('❌ Erreur mise à jour statut:', error)
     } finally {
       setLoading(false)
     }
@@ -308,7 +425,7 @@ export function useDeliveryman() {
     if (!user?.livreur?.id) return
 
     try {
-      await apiClient.put(`/livreurs/${user.livreur.id}/availability`, {
+      await apiClient.put(API_ROUTES.DELIVERYMAN.UPDATE_AVAILABILITY(user.livreur.id), {
         availabilityStatus: available ? 'available' : 'offline'
       })
 
@@ -331,63 +448,40 @@ export function useDeliveryman() {
   }, [user, startLocationTracking, stopLocationTracking, loadAvailableLivraisons])
 
   // =============================================================================
-  // GESTION DU WEBSOCKET
+  // GESTION DU WEBSOCKET - TEMPORAIREMENT DÉSACTIVÉ
   // =============================================================================
 
   useEffect(() => {
-    const initWebSocket = async () => {
-      try {
-        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
-        if (!token) return
-
-        trackingWebSocketService.connect(token)
-        setWsConnected(true)
-
-        // Écouter les nouvelles livraisons disponibles
-        trackingWebSocketService.on('new_delivery_available', (data: any) => {
-          console.log('🆕 Nouvelle livraison disponible:', data)
-          loadAvailableLivraisons()
-        })
-
-        // Écouter les mises à jour de livraison
-        trackingWebSocketService.on('livraison_status_change', (data: any) => {
-          console.log('📦 Changement statut livraison:', data)
-          loadMyLivraisons()
-        })
-
-      } catch (error) {
-        console.error('❌ Erreur connexion WebSocket livreur:', error)
-        setWsConnected(false)
-      }
-    }
-
-    if (user && getUserRole(user) === 'delivery_man') {
-      initWebSocket()
-    }
+    // 🚫 WEBSOCKET TEMPORAIREMENT DÉSACTIVÉ pour éviter les erreurs en boucle
+    // TODO: Réactiver quand le backend sera stable
+    
+    console.log('🔌 WebSocket temporairement désactivé pour éviter les erreurs')
+    setWsConnected(false)
 
     return () => {
       stopLocationTracking()
-      trackingWebSocketService.disconnect()
       setWsConnected(false)
     }
-  }, [user, loadAvailableLivraisons, loadMyLivraisons, stopLocationTracking])
+  }, [user, stopLocationTracking])
 
   // =============================================================================
-  // CHARGEMENT INITIAL
+  // CHARGEMENT INITIAL - SANS MODE FALLBACK
   // =============================================================================
 
   useEffect(() => {
     if (user && getUserRole(user) === 'delivery_man') {
+      console.log('👤 Utilisateur livreur détecté, chargement des données...')
+      
+      // Charger les données réelles uniquement
       loadMyLivraisons()
       loadAvailableLivraisons()
       
-      // Récupérer le statut de disponibilité actuel
+      // Récupérer le statut de disponibilité actuel  
       if (user.livreur?.availabilityStatus === 'available') {
         setIsAvailable(true)
-        startLocationTracking()
       }
     }
-  }, [user, loadMyLivraisons, loadAvailableLivraisons, startLocationTracking])
+  }, [user, loadMyLivraisons, loadAvailableLivraisons])
 
   return {
     // Données

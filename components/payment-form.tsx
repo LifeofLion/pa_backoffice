@@ -69,7 +69,7 @@ export default function PaymentForm({ amount, itemId, itemName, onSuccess, onCan
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Amount:</span>
-                  <span className="font-medium">£{amount}</span>
+                  <span className="font-medium">€{amount}</span>
                 </div>
               </div>
 
