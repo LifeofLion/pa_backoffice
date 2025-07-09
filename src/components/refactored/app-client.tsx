@@ -47,7 +47,7 @@ export default function AppClient() {
       title: t('services.babySitter'),
       image: '/baby-sitter.jpg',
       description: t('services.babySitterDesc'),
-      price: '£17/hour',
+      price: '€17/hour',
       rating: 5,
     },
     {
@@ -55,7 +55,7 @@ export default function AppClient() {
       title: t('services.dogSitter'),
       image: '/dog-sitter.jpg',
       description: t('services.dogSitterDesc'),
-      price: '£20/hour',
+      price: '€20/hour',
       rating: 5,
     },
     {
@@ -63,7 +63,7 @@ export default function AppClient() {
       title: t('services.airportRide'),
       image: '/airport-ride.jpg',
       description: t('services.airportRideDesc'),
-      price: '£30 + £2/km',
+      price: '€30 + €2/km',
       rating: 5,
     },
   ]

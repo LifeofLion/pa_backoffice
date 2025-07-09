@@ -70,6 +70,9 @@ export interface User {
   state: 'open' | 'closed' | 'banned'
   createdAt: string
   updatedAt: string | null
+  role?: UserRole // Le rôle peut être optionnel selon le contexte de l'appel API
+  roles?: UserRole[] // Pour les utilisateurs multi-rôles
+  token?: string
   
   // Relations (présentes selon le rôle de l'utilisateur)
   admin?: AdminRelation

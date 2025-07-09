@@ -33,7 +33,7 @@ export default function ComplaintClient() {
     {
       id: "c1",
       announce: "000001",
-      shippingPrice: "£20.00",
+      shippingPrice: "€20.00",
       justificativePieces: 2,
       description:
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -43,7 +43,7 @@ export default function ComplaintClient() {
     {
       id: "c2",
       announce: "000002",
-      shippingPrice: "£35.50",
+      shippingPrice: "€35.50",
       justificativePieces: 1,
       description: "Package arrived damaged. The box was crushed on one side and the contents were broken.",
       status: "in_progress",
@@ -52,7 +52,7 @@ export default function ComplaintClient() {
     {
       id: "c3",
       announce: "000003",
-      shippingPrice: "£15.75",
+      shippingPrice: "€15.75",
       justificativePieces: 3,
       description: "Delivery was made to the wrong address. I had to go pick it up myself from a neighbor.",
       status: "pending",

@@ -1,2432 +1,1255 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/components/language-context';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient, getErrorMessage } from '@/src/lib/api';
+import {
+  ServiceData, 
+  ServiceStats, 
+  ServiceTypeData, 
+  ServiceFilters,
+  ServiceValidators,
+  ServiceRequest
+} from '@/src/types/validators';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
+  RefreshCw, 
 	Plus,
-	Pencil,
-	Trash2,
-	Eye,
 	Search,
 	Filter,
-	RefreshCw,
-	Settings,
-	DollarSign,
-	Clock,
-	MapPin,
-	User,
-	Calendar,
+  Eye,
+  Edit,
+  Trash2,
 	CheckCircle,
 	XCircle,
-	AlertCircle,
-	Mail,
-	Phone,
-	Edit,
-	Star,
-	Award,
-	MessageCircle,
+  Clock,
+  DollarSign,
+  Users,
 	TrendingUp,
+  Settings,
+  User,
+  Star,
+  Calendar,
+  MessageSquare
 } from 'lucide-react';
-import { useServices } from '@/hooks/use-services';
-import { apiClient } from '@/src/lib/api';
-import type {
-	ServiceData,
-	ServiceTypeData,
-	PrestataireData,
-	ServiceFormData,
-	ServiceTypeFormData,
-	BookingData,
-	BookingStats,
-} from '@/hooks/use-services';
-import {
-	formatRating,
-	calculateDetailedAverages,
-	calculateSatisfactionRate,
-	formatReviewDate,
-	getInitials,
-	type RatingData,
-	type RatingAverages,
-} from '@/lib/rating-utils';
-import PendingServicesWithJustifications from './pending-services-with-justifications';
+import { BookingsManagement } from './bookings-management';
+import { RatingsManagement } from './ratings-management';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/src/hooks/use-auth';
+import { Checkbox } from '@/components/ui/checkbox';
+import { getUserRole } from '@/src/types';
 
-// Interface pour les suggestions d'adresse
-interface AddressSuggestion {
-	label: string;
-	value: string;
+// =============================================================================
+// COMPOSANT CARTES STATISTIQUES
+// =============================================================================
+
+function StatsCards({ stats }: { stats: ServiceStats }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Total Services</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
+            </div>
+            <Users className="h-8 w-8 text-blue-600" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Services Actifs</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Chiffre d'Affaires</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.total_revenue.toFixed(2)}€</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-blue-600" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Note Moyenne</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {stats.average_rating > 0 ? stats.average_rating.toFixed(1) : 'N/A'}
+              </p>
+            </div>
+            <Star className="h-8 w-8 text-yellow-600" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
-export function ServicesManagement() {
-	const { t } = useLanguage();
-	const { toast } = useToast();
+// =============================================================================
+// COMPOSANT TABLEAU DES SERVICES
+// =============================================================================
 
-	// Hook centralisé pour la gestion des services
-	const {
+function ServicesTable({ 
 		services,
-		serviceTypes,
-		prestataires,
-		bookings,
-		bookingStats,
-		loading,
-		refreshing,
-		loadAllData,
-		createService,
-		updateService,
-		toggleServiceStatus,
-		deleteService,
-		createServiceType,
-		updateServiceType,
-		toggleServiceTypeStatus,
-		deleteServiceType,
-		loadPrestataireReviews,
-		loadBookings,
-		loadBookingStats,
-		updateBookingStatus,
-		getBookingDetails,
-	} = useServices();
+  searchTerm, 
+  onToggleStatus, 
+  onDelete,
+  onEdit
+}: { 
+  services: ServiceData[];
+  searchTerm: string;
+  onToggleStatus: (id: number, currentStatus: boolean) => void;
+  onDelete: (id: number) => void;
+  onEdit: (service: ServiceData)=>void;
+}) {
+  
+  // Filtrer les services selon le terme de recherche
+  const filteredServices = services.filter(service => {
+    if (!searchTerm.trim()) return true;
+    
+    const term = searchTerm.toLowerCase();
+    return (
+      service.name.toLowerCase().includes(term) ||
+      service.description.toLowerCase().includes(term) ||
+      service.location.toLowerCase().includes(term) ||
+      service.prestataire_name.toLowerCase().includes(term) ||
+      service.prestataire_email.toLowerCase().includes(term) ||
+      (service.service_type_name && service.service_type_name.toLowerCase().includes(term))
+    );
+  });
 
-	const calculateSafeAverage = (
-		values: (number | string | null | undefined)[],
-		defaultValue: number = 0
-	): number => {
-		const validValues = values
-			.map((v) => {
-				if (v === null || v === undefined || v === '') return null;
-				const num = typeof v === 'string' ? parseFloat(v) : v;
-				return !isNaN(num) && num > 0 ? num : null;
-			})
-			.filter((v) => v !== null) as number[];
+  const getStatusBadge = (status: string, isActive: boolean) => {
+    // Si le service est désactivé manuellement
+    if (!isActive) return <Badge variant="secondary">Inactif</Badge>;
 
-		return validValues.length > 0
-			? validValues.reduce((sum, val) => sum + val, 0) /
-					validValues.length
-			: defaultValue;
-	};
+    // Normaliser le statut en respectant la nomenclature cahier des charges
+    const map: Record<string, { label: string; variant?: "default" | "secondary" | "destructive" }> = {
+      pending: { label: 'À valider', variant: 'secondary' },
+      available: { label: 'Disponible', variant: 'default' },
+      active: { label: 'Disponible', variant: 'default' },
+      scheduled: { label: 'Disponible', variant: 'default' }, // Éviter la confusion
+      in_progress: { label: 'En cours', variant: 'default' },
+      paid: { label: 'Payé', variant: 'default' },
+      completed: { label: 'Terminé' },
+      cancelled: { label: 'Annulé', variant: 'destructive' },
+      refused: { label: 'Refusé', variant: 'destructive' },
+    };
 
-	const formatSafeAverage = (
-		values: (number | string | null | undefined)[],
-		decimals: number = 1
-	): string => {
-		const average = calculateSafeAverage(values, 0);
-		return average > 0 ? average.toFixed(decimals) : '0.0';
-	};
+    const conf = map[status] || { label: status, variant: 'outline' };
+    return <Badge variant={conf.variant as any}>{conf.label}</Badge>;
+  };
 
-	const [searchTerm, setSearchTerm] = useState('');
-	const [statusFilter, setStatusFilter] = useState<string>('all');
-	const [typeFilter, setTypeFilter] = useState<string>('all');
-	const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
-	const [activeFilter, setActiveFilter] = useState<string>('all');
+  const formatPrice = (price: number, pricingType: string) => {
+    const formatted = price.toFixed(2);
+    switch (pricingType) {
+      case 'hourly':
+        return `${formatted}€/h`;
+      case 'custom':
+        return `${formatted}€ (sur mesure)`;
+      default:
+        return `${formatted}€`;
+    }
+  };
 
-	const [showCreateService, setShowCreateService] = useState(false);
-	const [showCreateServiceType, setShowCreateServiceType] = useState(false);
-	const [showServiceDetails, setShowServiceDetails] = useState(false);
-	const [editingService, setEditingService] = useState<ServiceData | null>(
-		null
-	);
-	const [editingServiceType, setEditingServiceType] =
-		useState<ServiceTypeData | null>(null);
-	const [showEditServiceType, setShowEditServiceType] = useState(false);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left p-4 font-medium">Service</th>
+            <th className="text-left p-4 font-medium">Prestataire</th>
+            <th className="text-left p-4 font-medium">Type</th>
+            <th className="text-left p-4 font-medium">Prix</th>
+            <th className="text-left p-4 font-medium">Localisation</th>
+            <th className="text-left p-4 font-medium">Statut</th>
+            <th className="text-left p-4 font-medium">Note</th>
+            <th className="text-left p-4 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredServices.map((service) => (
+            <tr key={service.id} className="border-b hover:bg-gray-50">
+              <td className="p-4">
+                <div>
+                  <p className="font-medium">{service.name}</p>
+                  <p className="text-sm text-gray-600 truncate max-w-xs">
+                    {service.description}
+                  </p>
+                  {service.home_service && (
+                    <Badge variant="outline" className="mt-1">À domicile</Badge>
+                  )}
+                </div>
+              </td>
+              <td className="p-4">
+                <div>
+                  <p className="font-medium">{service.prestataire_name}</p>
+                  <p className="text-sm text-gray-600">{service.prestataire_email}</p>
+                </div>
+              </td>
+              <td className="p-4">
+                <span className="text-sm">
+                  {service.service_type_name || 'Non défini'}
+                </span>
+              </td>
+              <td className="p-4">
+                <span className="font-medium">
+                  {formatPrice(service.price, service.pricing_type)}
+                </span>
+              </td>
+              <td className="p-4">
+                <span className="text-sm">{service.location}</span>
+              </td>
+              <td className="p-4">
+                {getStatusBadge(service.status, service.is_active)}
+              </td>
+              <td className="p-4">
+                {service.prestataire_rating ? (
+                  <div className="flex items-center">
+                    <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                    <span>{service.prestataire_rating.toFixed(1)}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">N/A</span>
+                )}
+              </td>
+              <td className="p-4">
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onToggleStatus(service.id, service.is_active)}
+                    title={service.is_active ? 'Désactiver' : 'Activer'}
+                  >
+                    {service.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={()=>onEdit(service)} title="Modifier">
+                    <Edit className="h-4 w-4"/>
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onDelete(service.id)} title="Supprimer">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      
+      {filteredServices.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          {searchTerm ? 'Aucun service trouvé pour cette recherche' : 'Aucun service trouvé'}
+        </div>
+      )}
+    </div>
+  );
+}
 
-	const [showPrestataireProfile, setShowPrestataireProfile] = useState(false);
-	const [showPrestataireReviews, setShowPrestataireReviews] = useState(false);
-	const [selectedPrestataire, setSelectedPrestataire] =
-		useState<PrestataireData | null>(null);
-	const [selectedService, setSelectedService] = useState<ServiceData | null>(
-		null
-	);
-	const [prestataireReviews, setPrestataireReviews] = useState<RatingData[]>(
-		[]
-	);
-	const [detailedAverages, setDetailedAverages] = useState<RatingAverages>({
-		overall: 0,
-		punctuality: null,
-		quality: null,
-		communication: null,
-		value: null,
-	});
-	const [showAllReviews, setShowAllReviews] = useState(false);
+// Tableau pour les services en attente de validation
+function PendingServicesTable({ pending, onValidate }: { pending: ServiceData[]; onValidate: (id:number, approve:boolean)=>void }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="p-4 text-left">Service</th>
+            <th className="p-4 text-left">Prestataire</th>
+            <th className="p-4 text-left">Type</th>
+            <th className="p-4 text-left">Prix</th>
+            <th className="p-4 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pending.map((s) => (
+            <tr key={s.id} className="border-b">
+              <td className="p-4">{s.name}</td>
+              <td className="p-4">{s.prestataire_name}</td>
+              <td className="p-4">{s.service_type_name}</td>
+              <td className="p-4">{s.price.toFixed(2)}€</td>
+              <td className="p-4 space-x-2">
+                <Button size="sm" onClick={()=>onValidate(s.id,true)}>
+                  <CheckCircle className="h-4 w-4 mr-1"/>Approuver
+                </Button>
+                <Button size="sm" variant="destructive" onClick={()=>onValidate(s.id,false)}>
+                  <XCircle className="h-4 w-4 mr-1"/>Refuser
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {pending.length===0 && <div className="text-center py-8 text-gray-500">Aucun service en attente</div>}
+    </div>
+  )
+}
 
-	const defaultServiceForm: ServiceFormData = {
-		name: '',
-		description: '',
-		price: 0,
-		pricing_type: 'fixed',
-		hourly_rate: null,
-		prestataire_id: '',
-		service_type_id: '',
-		location: '',
-		duration: null,
-		home_service: false,
-		requires_materials: false,
-		availability_description: null,
-	};
+// =============================================================================
+// COMPOSANT PRINCIPAL
+// =============================================================================
 
-	const [serviceForm, setServiceForm] =
-		useState<ServiceFormData>(defaultServiceForm);
+export function ServicesManagement() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const { user } = useAuth(); // Infos utilisateur connecté
 
-	const [serviceTypeForm, setServiceTypeForm] = useState<ServiceTypeFormData>(
-		{
-			name: '',
-			description: '',
-			isActive: true,
-		}
-	);
+  // Déterminer si l'utilisateur est admin, en tenant compte
+  // soit de la propriété user.role, soit des relations renvoyées par l'API.
+  const isAdmin = user ? (user.role === 'admin' || getUserRole(user) === 'admin') : false;
 
-	const [addressSuggestions, setAddressSuggestions] = useState<
-		AddressSuggestion[]
-	>([]);
-	const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
-	const [isLoadingAddressSuggestions, setIsLoadingAddressSuggestions] =
-		useState(false);
-	const addressSuggestionsRef = useRef<HTMLDivElement>(null);
+  // État
+  const [services, setServices] = useState<ServiceData[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<ServiceTypeData[]>([]);
+  const [stats, setStats] = useState<ServiceStats>({
+    total: 0,
+    active: 0,
+    pending: 0,
+    completed: 0,
+    cancelled: 0,
+    total_revenue: 0,
+    average_rating: 0,
+    average_duration: 0
+  });
 
-	const handleCreateService = async (e: React.FormEvent) => {
-		e.preventDefault();
-		try {
-			await createService({
-				name: serviceForm.name,
-				description: serviceForm.description,
-				price: serviceForm.price,
-				pricing_type: serviceForm.pricing_type,
-				hourly_rate: serviceForm.hourly_rate,
-				prestataire_id: serviceForm.prestataire_id,
-				service_type_id: serviceForm.service_type_id,
-				location: serviceForm.location,
-				duration: serviceForm.duration,
-				home_service: serviceForm.home_service,
-				requires_materials: serviceForm.requires_materials,
-				availability_description: serviceForm.availability_description,
-			});
-			setShowCreateService(false);
-			loadAllData();
+  // Validation
+  const [pendingServices,setPendingServices] = useState<ServiceData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('services');
+
+  // États pour les dialogues
+  const [showFilters, setShowFilters] = useState(false);
+  const [showNewServiceDialog, setShowNewServiceDialog] = useState(false);
+  const [showNewTypeDialog, setShowNewTypeDialog] = useState(false);
+
+  // États pour le formulaire de création de type
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeDescription, setNewTypeDescription] = useState('');
+  const [newTypeActive, setNewTypeActive] = useState(true);
+
+  // === États pour l'édition d'un type existant ===
+  const [editTypeDialogOpen, setEditTypeDialogOpen] = useState(false);
+  const [editTypeId, setEditTypeId] = useState<number | null>(null);
+  const [editTypeName, setEditTypeName] = useState('');
+  const [editTypeDescription, setEditTypeDescription] = useState('');
+  const [editTypeActive, setEditTypeActive] = useState(true);
+
+  // État simple pour empêcher plusieurs clics rapides
+  const [typeActionLoading, setTypeActionLoading] = useState(false);
+
+  // === États pour le formulaire de création de service ===
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDescription, setNewServiceDescription] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+  const [newServicePricingType, setNewServicePricingType] = useState<'fixed' | 'hourly' | 'custom'>('fixed');
+  const [newServiceLocation, setNewServiceLocation] = useState('');
+  const [newServiceTypeId, setNewServiceTypeId] = useState('');
+  const [newServiceHomeService, setNewServiceHomeService] = useState(true);
+  const [newServiceRequiresMaterials, setNewServiceRequiresMaterials] = useState(false);
+  const [newServiceDuration, setNewServiceDuration] = useState('');
+  
+  // === États pour l’édition d’un service ===
+  const [editServiceDialogOpen,setEditServiceDialogOpen]=useState(false);
+  const [editServiceId,setEditServiceId]=useState<number|null>(null);
+  const [editServiceName,setEditServiceName]=useState('');
+  const [editServiceDescription,setEditServiceDescription]=useState('');
+  const [editServicePrice,setEditServicePrice]=useState('');
+  const [editServicePricingType,setEditServicePricingType]=useState<'fixed'|'hourly'|'custom'>('fixed');
+  const [editServiceLocation,setEditServiceLocation]=useState('');
+  const [editServiceTypeId,setEditServiceTypeId]=useState('');
+  const [editServiceHomeService,setEditServiceHomeService]=useState(true);
+  const [editServiceRequiresMaterials,setEditServiceRequiresMaterials]=useState(false);
+  const [editServiceDuration,setEditServiceDuration]=useState('');
+
+  // Nouveaux états pour la sélection du prestataire
+  const [prestataires, setPrestataires] = useState<any[]>([]);
+  const [selectedPrestataireId, setSelectedPrestataireId] = useState('');
+
+  // Charger les prestataires si l'utilisateur est un admin
+  useEffect(() => {
+    const loadPrestataires = async () => {
+      if (isAdmin) {
+        try {
+          const prestatairesList = await apiClient.getPrestataires();
+          setPrestataires(Array.isArray(prestatairesList) ? prestatairesList : []);
 		} catch (error) {
-			console.error('Erreur lors de la création du service:', error);
-		}
-	};
+          console.error('Erreur chargement prestataires', error);
+          toast({ title: 'Erreur', description: 'Impossible de charger les prestataires.', variant: 'destructive' });
+        }
+      }
+    };
+    loadPrestataires();
+  }, [isAdmin, toast]);
+  
+  // ==========================================================================
+  // FONCTIONS DE CHARGEMENT DES DONNÉES
+  // ==========================================================================
 
-	const handleUpdateService = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!editingService) return;
+  /**
+   * Transforme les données brutes de l'API en ServiceData typé
+   */
+  const transformServiceData = useCallback((rawService: any): ServiceData => {
+    return {
+      id: rawService.id,
+      name: rawService.name || '',
+      description: rawService.description || '',
+      price: rawService.pricing_type === 'hourly'
+        ? (typeof rawService.hourly_rate === 'string'
+            ? parseFloat(rawService.hourly_rate)
+            : rawService.hourly_rate || 0)
+        : (typeof rawService.price === 'string'
+            ? parseFloat(rawService.price)
+            : (rawService.price || 0)),
+      pricing_type: rawService.pricing_type || rawService.pricingType || 'fixed',
+      location: rawService.location || '',
+      status: rawService.status || 'pending',
+      is_active: rawService.is_active ?? rawService.isActive ?? true,
+      prestataire_name: rawService.prestataire_name || rawService.prestataireName || 'N/A',
+      prestataire_email: rawService.prestataire_email || rawService.prestataireEmail || '',
+      prestataire_rating: rawService.prestataire_rating ? 
+        (typeof rawService.prestataire_rating === 'string' ? 
+          parseFloat(rawService.prestataire_rating) : 
+          rawService.prestataire_rating) : null,
+      service_type_name: rawService.service_type_name || rawService.serviceTypeName || null,
+      service_type_id: rawService.service_type_id || rawService.serviceTypeId || null,
+      created_at: rawService.created_at || rawService.createdAt || new Date().toISOString(),
+      updated_at: rawService.updated_at || rawService.updatedAt || new Date().toISOString(),
+      home_service: rawService.home_service ?? rawService.homeService ?? false,
+      requires_materials: rawService.requires_materials ?? rawService.requiresMaterials ?? false,
+      duration: rawService.duration || null,
+    };
+  }, []);
 
-		try {
-			await updateService(editingService.id, {
-				name: serviceForm.name,
-				description: serviceForm.description,
-				price: serviceForm.price,
-				pricing_type: serviceForm.pricing_type,
-				hourly_rate: serviceForm.hourly_rate,
-				prestataire_id: serviceForm.prestataire_id,
-				service_type_id: serviceForm.service_type_id,
-				location: serviceForm.location,
-				duration: serviceForm.duration,
-				home_service: serviceForm.home_service,
-				requires_materials: serviceForm.requires_materials,
-				availability_description: serviceForm.availability_description,
-			});
-			setEditingService(null);
-			loadAllData();
+  const calculateStats = useCallback((servicesData: ServiceData[]) => {
+    const total = servicesData.length;
+    const active = servicesData.filter(s => s.status === 'active' && s.is_active).length;
+    const pending = servicesData.filter(s => s.status === 'pending').length;
+    const completed = servicesData.filter(s => s.status === 'completed').length;
+    const cancelled = servicesData.filter(s => s.status === 'cancelled').length;
+    
+    const completedServices = servicesData.filter(s => s.status === 'completed');
+    const total_revenue = completedServices.reduce((sum, s) => sum + s.price, 0);
+    
+    const ratingsServices = servicesData.filter(s => s.prestataire_rating !== null);
+    const average_rating = ratingsServices.length > 0 
+      ? ratingsServices.reduce((sum, s) => sum + (s.prestataire_rating || 0), 0) / ratingsServices.length 
+      : 0;
+
+    const durationServices = servicesData.filter(s => s.duration !== null);
+    const average_duration = durationServices.length > 0
+      ? durationServices.reduce((sum, s) => sum + (s.duration || 0), 0) / durationServices.length
+      : 0;
+
+    setStats({
+      total,
+      active,
+      pending,
+      completed,
+      cancelled,
+      total_revenue,
+      average_rating,
+      average_duration,
+    });
+  }, []);
+
+  const loadServices = useCallback(async (filters?: ServiceFilters) => {
+    try {
+      setLoading(true);
+      console.log('🔄 Chargement des services...');
+      
+      // Utiliser l'API client existant
+      const response = await apiClient.getAdminServices(filters);
+      console.log('📦 Réponse API services:', response);
+      
+             // Traitement de la réponse selon sa structure
+       let rawServicesData: any[] = [];
+       
+       if (Array.isArray(response)) {
+         rawServicesData = response;
+       } else if (response && response.data && Array.isArray(response.data)) {
+         rawServicesData = response.data;
+       } else if (response && response.services && Array.isArray(response.services)) {
+         rawServicesData = response.services;
+       } else {
+         console.warn('⚠️ Structure de réponse inattendue:', response);
+         rawServicesData = [];
+       }
+
+       // Transformer les données brutes en ServiceData typé
+       const transformedServices = rawServicesData.map(rawService => {
+         try {
+           return transformServiceData(rawService);
 		} catch (error) {
-			console.error('Erreur lors de la mise à jour du service:', error);
-		}
-	};
+           console.error('❌ Erreur transformation service:', error, rawService);
+           return null;
+         }
+       }).filter((service): service is ServiceData => service !== null);
 
-	const handleToggleServiceStatus = async (
-		id: number,
-		currentStatus: boolean
-	) => {
-		await toggleServiceStatus(id, currentStatus);
-	};
+              setServices(transformedServices);
+       calculateStats(transformedServices);
+       
+       console.log(`✅ ${transformedServices.length} services chargés`);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement services:', error);
+      toast({
+        title: 'Erreur',
+        description: getErrorMessage(error) || 'Impossible de charger les services',
+        variant: 'destructive',
+      });
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, calculateStats]);
 
-	const handleDeleteService = async (id: number) => {
-		if (!confirm('Êtes-vous sûr de vouloir supprimer ce service ?')) return;
-		await deleteService(id);
-	};
-
-	const handleViewPrestataireProfile = (prestataireId: number) => {
-		const prestataire = prestataires.find(
-			(p: PrestataireData) => p.id === prestataireId
-		);
-		if (prestataire) {
-			setSelectedPrestataire(prestataire);
-			setShowPrestataireProfile(true);
-		}
-	};
-
-	const handleViewPrestataireReviews = async (prestataireId: number) => {
-		const prestataire = prestataires.find(
-			(p: PrestataireData) => p.id === prestataireId
-		);
-		if (prestataire) {
-			setSelectedPrestataire(prestataire);
-			try {
-				const reviews = await loadPrestataireReviews(prestataireId);
-				setPrestataireReviews(reviews);
-				const averages = calculateDetailedAverages(reviews);
-				setDetailedAverages(averages);
-				setShowPrestataireReviews(true);
+  const loadServiceTypes = useCallback(async () => {
+    try {
+      console.log('🔄 Chargement des types de services...');
+      
+      // Utiliser l'API client existant  
+      const response = await apiClient.getAdminServiceTypes();
+      console.log('📦 Réponse API types services:', response);
+      
+      // Traitement de la réponse selon sa structure
+      let typesData: ServiceTypeData[] = [];
+      
+      if (Array.isArray(response)) {
+        typesData = response;
+      } else if (response && response.serviceTypes && Array.isArray(response.serviceTypes)) {
+        typesData = response.serviceTypes;
+      } else if (response && response.service_types && Array.isArray(response.service_types)) {
+        typesData = response.service_types;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        typesData = response.data;
+      } else {
+        console.warn('⚠️ Structure de réponse types services inattendue:', response);
+        typesData = [];
+      }
+      
+      setServiceTypes(typesData);
+      console.log(`✅ ${typesData.length} types de services chargés`);
+      
 			} catch (error) {
-				console.error('Erreur chargement avis:', error);
+      console.error('❌ Erreur chargement types de services:', error);
 				toast({
 					title: 'Erreur',
-					description: 'Impossible de charger les avis.',
+        description: getErrorMessage(error) || 'Impossible de charger les types de services',
 					variant: 'destructive',
 				});
 			}
-		}
-	};
+  }, [toast]);
 
-	const handleViewServiceDetails = (service: ServiceData) => {
-		setSelectedService(service);
-		setShowServiceDetails(true);
-	};
+  const loadPendingValidation = useCallback(async ()=>{
+     try {
+       const resp = await apiClient.getPendingServices();
+       const rawList = resp?.pending_services || resp?.data || resp || [];
+       const transformed = rawList.map(transformServiceData).filter(Boolean);
+       setPendingServices(transformed);
+     } catch(e){ console.error(e); }
+  },[transformServiceData]);
 
-	const handleCreateServiceType = async () => {
-		const success = await createServiceType(serviceTypeForm);
-		if (success) {
-			setShowCreateServiceType(false);
-			setServiceTypeForm({
-				name: '',
-				description: '',
-				isActive: true,
-			});
-		}
-	};
+  const handleValidateAction = async(id:number,approve:boolean)=>{
+     try{
+       await apiClient.validateService(id.toString(), approve? 'approved':'rejected', undefined, false);
+       toast({title:'Succès',description:`Service ${approve? 'approuvé':'refusé'}`});
+       setPendingServices(prev=>prev.filter(s=>s.id!==id));
+       await loadServices();
+     }catch(err){ toast({title:'Erreur',description:getErrorMessage(err),variant:'destructive'}); }
+  };
 
-	const handleUpdateServiceType = async () => {
-		if (!editingServiceType) return;
-		const success = await updateServiceType(
-			editingServiceType.id,
-			serviceTypeForm
-		);
-		if (success) {
-			setShowEditServiceType(false);
-			setEditingServiceType(null);
-			setServiceTypeForm({
-				name: '',
-				description: '',
-				isActive: true,
-			});
-		}
-	};
+  // ==========================================================================
+  // FONCTIONS D'ACTIONS
+  // ==========================================================================
 
-	const handleToggleServiceType = async (id: number) => {
-		await toggleServiceTypeStatus(id);
-	};
+  const handleCreateNewService = useCallback(async () => {
+    const prestataireId = isAdmin ? selectedPrestataireId : user?.id;
 
-	const handleDeleteServiceType = async (id: number) => {
-		if (!confirm('Êtes-vous sûr de vouloir supprimer ce type de service ?'))
+    if (!prestataireId) {
+      toast({
+        title: 'Erreur de validation',
+        description: 'Veuillez sélectionner un prestataire.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Validation
+      if (!newServiceName.trim()) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'Le nom du service est requis',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newServiceDescription.trim()) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'La description du service est requise',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newServicePrice || parseFloat(newServicePrice) <= 0) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'Le prix doit être supérieur à 0',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newServiceLocation.trim()) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'La localisation est requise',
+          variant: 'destructive',
+        });
 			return;
-		await deleteServiceType(id);
-	};
+      }
 
-	const openEditServiceType = (serviceType: ServiceTypeData) => {
-		setServiceTypeForm({
-			name: serviceType.name,
-			description: serviceType.description || '',
-			isActive: serviceType.is_active,
-		});
-		setEditingServiceType(serviceType);
-		setShowEditServiceType(true);
-	};
+      if (!newServiceTypeId) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'Le type de service est requis',
+          variant: 'destructive',
+        });
+			return;
+      }
 
-	const resetServiceForm = () => {
-		setServiceForm(defaultServiceForm);
-		setAddressSuggestions([]);
-		setShowAddressSuggestions(false);
-	};
+      const serviceData = {
+        prestataireId: parseInt(prestataireId.toString(), 10),
+        name: newServiceName.trim(),
+        description: newServiceDescription.trim(),
+        price: parseFloat(newServicePrice),
+        pricing_type: newServicePricingType,
+        location: newServiceLocation.trim(),
+        service_type_id: parseInt(newServiceTypeId),
+        home_service: newServiceHomeService,
+        requires_materials: newServiceRequiresMaterials,
+        duration: newServiceDuration ? parseInt(newServiceDuration) : null,
+        status: 'pending', // Nouveau service en attente de validation
+        is_active: false   // Inactif jusqu'à validation admin
+      };
 
-	const openEditService = (service: ServiceData) => {
-		console.log('Service à éditer:', service);
+      await apiClient.createService(serviceData);
+      
+      toast({
+        title: 'Succès',
+        description: 'Service créé avec succès. Il sera visible après validation.',
+      });
+      
+      // Réinitialiser le formulaire
+      setNewServiceName('');
+      setNewServiceDescription('');
+      setNewServicePrice('');
+      setNewServicePricingType('fixed');
+      setNewServiceLocation('');
+      setNewServiceTypeId('');
+      setNewServiceHomeService(true);
+      setNewServiceRequiresMaterials(false);
+      setNewServiceDuration('');
+      setShowNewServiceDialog(false);
+      
+      await loadServices(); // Recharger la liste
+    } catch (error) {
+      console.error('❌ Erreur création service:', error);
+      toast({
+        title: 'Erreur',
+        description: getErrorMessage(error) || 'Impossible de créer le service',
+        variant: 'destructive',
+      });
+    }
+  }, [toast, loadServices, newServiceName, newServiceDescription, newServicePrice, newServicePricingType, newServiceLocation, newServiceTypeId, newServiceHomeService, newServiceRequiresMaterials, newServiceDuration, user, selectedPrestataireId, isAdmin]);
 
-		setServiceForm({
-			name: service.name,
-			description: service.description,
-			price: service.price,
-			pricing_type: service.pricing_type,
-			hourly_rate: service.hourly_rate,
-			prestataire_id: service.prestataire_id?.toString() || '',
-			service_type_id: service.service_type_id?.toString() || '',
-			location: service.location,
-			duration: service.duration,
-			home_service: service.home_service,
-			requires_materials: service.requires_materials,
-			availability_description: service.availability_description,
-		});
-
-		setEditingService(service);
-	};
-
-	const handleSearchChange = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => {
-			setSearchTerm(e.target.value);
-		},
-		[]
-	);
-
-	const filteredServices = useMemo(() => {
-		return services.filter((service) => {
-			if (statusFilter !== 'all' && service.status !== statusFilter) {
-				return false;
-			}
-			if (
-				typeFilter !== 'all' &&
-				service.service_type_id?.toString() !== typeFilter
-			) {
-				return false;
-			}
-			if (activeFilter === 'active' && !service.is_active) {
-				return false;
-			}
-			if (activeFilter === 'inactive' && service.is_active) {
-				return false;
-			}
-			return true;
-		});
-	}, [services, statusFilter, typeFilter, activeFilter]);
-
-	const searchAddresses = async (query: string) => {
-		if (query.length < 4) {
-			setAddressSuggestions([]);
-			setShowAddressSuggestions(false);
+  const handleCreateNewType = useCallback(async () => {
+    try {
+      // Validation
+      if (!newTypeName.trim()) {
+        toast({
+          title: 'Erreur de validation',
+          description: 'Le nom du type de service est requis',
+          variant: 'destructive',
+        });
 			return;
 		}
 
-		try {
-			setIsLoadingAddressSuggestions(true);
+      const newTypeData = {
+        name: newTypeName.trim(),
+        description: newTypeDescription.trim() || undefined,
+        is_active: newTypeActive
+      };
 
-			const response = await fetch(
-				`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(
-					query
-				)}&limit=5`
-			);
-			const data = await response.json();
-
-			const suggestions = data.features.map((feature: any) => ({
-				label: feature.properties.label,
-				value: feature.properties.label,
-			}));
-
-			setAddressSuggestions(suggestions);
-			setShowAddressSuggestions(true);
-			setIsLoadingAddressSuggestions(false);
+      await apiClient.createServiceType(newTypeData);
+      
+      toast({
+        title: 'Succès',
+        description: 'Type de service créé avec succès',
+      });
+      
+      // Réinitialiser le formulaire
+      setNewTypeName('');
+      setNewTypeDescription('');
+      setNewTypeActive(true);
+      setShowNewTypeDialog(false);
+      
+      await loadServiceTypes(); // Recharger la liste
 		} catch (error) {
-			console.error("Erreur lors de la recherche d'adresse:", error);
-			setIsLoadingAddressSuggestions(false);
-		}
-	};
+      console.error('❌ Erreur création type de service:', error);
+      toast({
+        title: 'Erreur',
+        description: getErrorMessage(error) || 'Impossible de créer le type de service',
+        variant: 'destructive',
+      });
+    }
+  }, [toast, loadServiceTypes, newTypeName, newTypeDescription, newTypeActive]);
 
-	const selectAddress = (suggestion: AddressSuggestion) => {
-		setServiceForm((prev) => ({
-			...prev,
-			location: suggestion.value,
-		}));
-		setShowAddressSuggestions(false);
-	};
+  // ========================================================================
+  // ÉDITION TYPE DE SERVICE
+  // ========================================================================
 
-	const formatDuration = (minutes: number): string => {
-		if (minutes === 0) return '0 min';
+  const openEditTypeDialog = (type: ServiceTypeData) => {
+    setEditTypeId(type.id);
+    setEditTypeName(type.name);
+    setEditTypeDescription(type.description ?? '');
+    setEditTypeActive(type.is_active);
+    setEditTypeDialogOpen(true);
+  };
 
-		const hours = Math.floor(minutes / 60);
-		const remainingMinutes = minutes % 60;
+  const handleUpdateType = async () => {
+    if (!editTypeId) return;
 
-		if (hours === 0) return `${remainingMinutes} min`;
-		if (remainingMinutes === 0) return `${hours}h`;
-		return `${hours}h ${remainingMinutes}min`;
-	};
+    if (!editTypeName.trim()) {
+      toast({ title: 'Erreur', description: 'Le nom du type est requis', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await apiClient.updateServiceType(editTypeId.toString(), {
+        name: editTypeName.trim(),
+        description: editTypeDescription.trim() || undefined,
+        is_active: editTypeActive,
+      });
+
+      toast({ title: 'Succès', description: 'Type de service mis à jour' });
+
+      setEditTypeDialogOpen(false);
+      setEditTypeId(null);
+      setEditTypeName('');
+      setEditTypeDescription('');
+      setEditTypeActive(true);
+
+      await loadServiceTypes();
+    } catch (error) {
+      console.error('❌ Erreur update type service:', error);
+      toast({ title: 'Erreur', description: getErrorMessage(error) || 'Impossible de mettre à jour', variant: 'destructive' });
+    }
+  };
+
+  // Toggle status type de service
+  const handleToggleTypeStatus = async (type: ServiceTypeData) => {
+    if (typeActionLoading) return;
+    setTypeActionLoading(true);
+    try {
+      // Utiliser l'endpoint dédié si dispo, sinon update
+      if (apiClient.toggleServiceTypeStatus) {
+        await apiClient.toggleServiceTypeStatus(type.id.toString());
+      } else {
+        await apiClient.updateServiceType(type.id.toString(), { is_active: !type.is_active });
+      }
+
+      toast({ title: 'Succès', description: `Type ${!type.is_active ? 'activé' : 'désactivé'}` });
+
+      // Mise à jour locale rapide
+      setServiceTypes((prev) => prev.map((t) => (t.id === type.id ? { ...t, is_active: !t.is_active } : t)));
+    } catch (error) {
+      console.error('toggle type status error', error);
+      toast({ title: 'Erreur', description: getErrorMessage(error) || 'Impossible de modifier le statut', variant: 'destructive' });
+    } finally {
+      setTypeActionLoading(false);
+    }
+  };
+
+  const handleToggleServiceStatus = useCallback(async (serviceId: number, currentStatus: boolean) => {
+    try {
+      console.log(`🔄 Changement statut service ${serviceId}: ${!currentStatus}`);
+      
+      // Utiliser l'API client existant
+      await apiClient.updateServiceStatus(serviceId.toString(), !currentStatus);
+      
+      // Mise à jour locale
+      setServices(prev => prev.map(service => 
+        service.id === serviceId 
+          ? { ...service, is_active: !currentStatus }
+          : service
+      ));
+
+      toast({
+        title: 'Succès',
+        description: `Service ${!currentStatus ? 'activé' : 'désactivé'} avec succès`,
+      });
+		} catch (error) {
+      console.error('❌ Erreur changement statut service:', error);
+      toast({
+        title: 'Erreur',
+        description: getErrorMessage(error) || 'Impossible de modifier le statut du service',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  const handleDeleteService = useCallback(async (serviceId: number) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce service ?')) {
+      return;
+    }
+
+    try {
+      console.log(`🔄 Suppression service ${serviceId}`);
+      
+      // Utiliser l'API client existant
+      await apiClient.deleteService(serviceId.toString());
+      
+      // Mise à jour locale
+      setServices(prev => {
+        const updated = prev.filter(service => service.id !== serviceId);
+        calculateStats(updated);
+        return updated;
+      });
+      
+      toast({
+        title: 'Succès',
+        description: 'Service supprimé avec succès',
+      });
+    } catch (error) {
+      console.error('❌ Erreur suppression service:', error);
+      toast({
+        title: 'Erreur',
+        description: getErrorMessage(error) || 'Impossible de supprimer le service',
+        variant: 'destructive',
+      });
+    }
+  }, [toast, calculateStats]);
+
+  // === Fonction pour ouvrir le dialog d’édition ===
+  const openEditServiceDialog = (service: ServiceData)=>{
+    setEditServiceId(service.id);
+    setEditServiceName(service.name);
+    setEditServiceDescription(service.description);
+    setEditServicePrice(service.price.toString());
+    setEditServicePricingType(service.pricing_type);
+    setEditServiceLocation(service.location);
+    setEditServiceTypeId(service.service_type_id?service.service_type_id.toString():'');
+    setEditServiceHomeService(service.home_service);
+    setEditServiceRequiresMaterials(service.requires_materials);
+    setEditServiceDuration(service.duration?service.duration.toString():'');
+    setEditServiceDialogOpen(true);
+  };
+
+  // === Handler update ===
+  const handleUpdateService = async()=>{
+    if(!editServiceId) return;
+    try{
+      const payload:Partial<ServiceRequest>={
+        name:editServiceName.trim(),
+        description:editServiceDescription.trim(),
+        price:parseFloat(editServicePrice),
+        pricing_type:editServicePricingType,
+        location:editServiceLocation.trim(),
+        service_type_id:parseInt(editServiceTypeId),
+        home_service:editServiceHomeService,
+        requires_materials:editServiceRequiresMaterials,
+        duration:editServiceDuration?parseInt(editServiceDuration):undefined
+      };
+      await apiClient.updateService(editServiceId.toString(),payload);
+      toast({title:'Succès',description:'Service mis à jour'});
+      setEditServiceDialogOpen(false);
+      await loadServices();
+    }catch(err){
+      toast({title:'Erreur',description:getErrorMessage(err),variant:'destructive'});
+    }
+  };
+
+  const refreshData = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadServices(), loadServiceTypes(), loadPendingValidation()]);
+    setRefreshing(false);
+  }, [loadServices, loadServiceTypes, loadPendingValidation]);
+
+  // ==========================================================================
+  // EFFETS
+  // ==========================================================================
 
 	useEffect(() => {
-		loadAllData();
-	}, []);
+    refreshData();
+  }, [refreshData]);
 
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			if (serviceForm.location) {
-				searchAddresses(serviceForm.location);
-			}
-		}, 300);
+  // ==========================================================================
+  // RENDU
+  // ==========================================================================
 
-		return () => clearTimeout(timer);
-	}, [serviceForm.location]);
-
-	useEffect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (
-				addressSuggestionsRef.current &&
-				!addressSuggestionsRef.current.contains(event.target as Node)
-			) {
-				setShowAddressSuggestions(false);
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-		};
-	}, []);
-
-	const handleServiceTypeChange = (value: string) => {
-		setServiceForm((prev) => ({
-			...prev,
-			service_type_id: value,
-		}));
-	};
-
-	const handlePrestataireChange = (value: string) => {
-		setServiceForm((prev) => ({
-			...prev,
-			prestataire_id: value,
-		}));
-	};
-
-	const handleHourlyRateChange = (e) => {
-		const value = e.target.value ? parseFloat(e.target.value) : null;
-		setServiceForm((prev) => ({
-			...prev,
-			hourly_rate: value,
-		}));
-	};
-
-	const handleDurationChange = (e) => {
-		const value = e.target.value ? parseFloat(e.target.value) : null;
-		setServiceForm((prev) => ({
-			...prev,
-			duration: value,
-		}));
-	};
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Chargement des services...</span>
+      </div>
+    );
+  }
 
 	return (
-		<div className='space-y-6'>
+    <div className="space-y-6">
 			{/* En-tête */}
-			<div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
+      <div className="flex justify-between items-center">
 				<div>
-					<h1 className='text-2xl font-bold'>Gestion des Services</h1>
-					<p className='text-gray-600'>
-						Gérez les services et types de services EcoDeli
+          <h1 className="text-2xl font-bold">Gestion des Services</h1>
+          <p className="text-gray-600">
+            Administration des services EcoDeli ({services.length} services)
 					</p>
 				</div>
-				<div className='flex gap-2'>
 					<Button
-						onClick={loadAllData}
-						variant='outline'
+          onClick={refreshData} 
 						disabled={refreshing}
-					>
-						<RefreshCw
-							className={`h-4 w-4 mr-2 ${
-								refreshing ? 'animate-spin' : ''
-							}`}
-						/>
+          variant="outline"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
 						Actualiser
 					</Button>
-				</div>
 			</div>
 
-			<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Services Total
-						</CardTitle>
-						<Settings className='h-4 w-4 text-muted-foreground' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold'>
-							{services.length}
-						</div>
-						<p className='text-xs text-muted-foreground'>
-							{
-								services.filter((s: ServiceData) => s.is_active)
-									.length
-							}{' '}
-							actifs
-						</p>
-					</CardContent>
-				</Card>
+      {/* Statistiques */}
+      <StatsCards stats={stats} />
 
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Types
-						</CardTitle>
-						<Filter className='h-4 w-4 text-muted-foreground' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold'>
-							{serviceTypes.length}
-						</div>
-						<p className='text-xs text-muted-foreground'>
-							{
-								serviceTypes.filter(
-									(t: ServiceTypeData) => t.is_active
-								).length
-							}{' '}
-							actifs
-						</p>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Prestataires
-						</CardTitle>
-						<User className='h-4 w-4 text-muted-foreground' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold'>
-							{prestataires.length}
-						</div>
-						<p className='text-xs text-muted-foreground'>
-							{
-								prestataires.filter(
-									(p: PrestataireData) => p.is_validated
-								).length
-							}{' '}
-							validés
-						</p>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Prix Moyen
-						</CardTitle>
-						<DollarSign className='h-4 w-4 text-muted-foreground' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold'>
-							{Math.round(
-								calculateSafeAverage(
-									services.map((s: ServiceData) => s.price)
-								)
-							)}
-							€
-						</div>
-						<p className='text-xs text-muted-foreground'>
-							Par service
-						</p>
-					</CardContent>
-				</Card>
-			</div>
-
-			<Tabs defaultValue='services' className='space-y-4'>
-				<TabsList>
-					<TabsTrigger value='services'>
-						Services ({filteredServices.length})
+      {/* Onglets principaux */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="services" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Services ({services.length})
 					</TabsTrigger>
-					<TabsTrigger value='types'>
+          <TabsTrigger value="types" className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
 						Types ({serviceTypes.length})
 					</TabsTrigger>
-					<TabsTrigger value='prestataires'>
-						Prestataires ({prestataires.length})
+          <TabsTrigger value="bookings" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Réservations
 					</TabsTrigger>
-
-					<TabsTrigger value='validations'>
-						Validations (
-						{
-							services.filter(
-								(s: ServiceData) =>
-									s.status === 'pending' || !s.is_active
-							).length
-						}
-						)
+          <TabsTrigger value="ratings" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Avis
 					</TabsTrigger>
-					<TabsTrigger value='reservations'>
-						Réservations ({bookings.length})
+          <TabsTrigger value="validation" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Validation
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value='services' className='space-y-4'>
-					<div className='flex flex-col sm:flex-row gap-4'>
-						<div className='flex-1'>
-							<div className='relative'>
-								<Search className='absolute left-3 top-3 h-4 w-4 text-gray-400' />
+        <TabsContent value="services" className="space-y-4">
+          {/* Barre de recherche et filtres */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
 								<Input
-									placeholder='Rechercher un service...'
+                  placeholder="Rechercher un service, prestataire, localisation..."
 									value={searchTerm}
-									onChange={handleSearchChange}
-									className='pl-10'
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
 								/>
 							</div>
 						</div>
-
-						<Select
-							value={statusFilter}
-							onValueChange={setStatusFilter}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Filtrer par statut' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>
-									Tous les statuts
-								</SelectItem>
-								<SelectItem value='available'>
-									Disponible
-								</SelectItem>
-								<SelectItem value='unavailable'>
-									Indisponible
-								</SelectItem>
-								<SelectItem value='suspended'>
-									Suspendu
-								</SelectItem>
-							</SelectContent>
-						</Select>
-
-						<Select
-							value={typeFilter}
-							onValueChange={setTypeFilter}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Filtrer par type' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>
-									Tous les types
-								</SelectItem>
-								{serviceTypes
-									.filter(
-										(type: ServiceTypeData) =>
-											type.is_active
-									)
-									.map((type: ServiceTypeData) => (
-										<SelectItem
-											key={type.id}
-											value={type.id.toString()}
-										>
-											{type.name}
-										</SelectItem>
-									))}
-							</SelectContent>
-						</Select>
-
-						<Select
-							value={serviceTypeFilter}
-							onValueChange={setServiceTypeFilter}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Filtrer par type' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>
-									Tous les types
-								</SelectItem>
-								{serviceTypes
-									.filter((type) => type.is_active)
-									.map((type) => (
-										<SelectItem
-											key={type.id}
-											value={type.id.toString()}
-										>
-											{type.name}
-											{!type.is_active && ' (Inactif)'}
-										</SelectItem>
-									))}
-							</SelectContent>
-						</Select>
-
-						<Select
-							value={activeFilter}
-							onValueChange={setActiveFilter}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Filtrer par statut' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>Tous</SelectItem>
-								<SelectItem value='active'>Actifs</SelectItem>
-								<SelectItem value='inactive'>
-									Inactifs
-								</SelectItem>
-							</SelectContent>
-						</Select>
-
-						<Dialog
-							open={showCreateService}
-							onOpenChange={setShowCreateService}
-						>
-							<DialogTrigger asChild>
-								<Button>
-									<Plus className='h-4 w-4 mr-2' />
+            <Button 
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtres
+            </Button>
+            <Button onClick={() => setShowNewServiceDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
 									Nouveau Service
 								</Button>
-							</DialogTrigger>
-							<DialogContent className='max-w-2xl max-h-[85vh] overflow-y-auto'>
-								<DialogHeader>
-									<DialogTitle>
-										Créer un nouveau service
-									</DialogTitle>
-									<DialogDescription>
-										Remplissez les informations pour créer
-										un nouveau service
-									</DialogDescription>
-								</DialogHeader>
-
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-									<div className='space-y-2'>
-										<Label htmlFor='create-name'>
-											Nom du service
-										</Label>
-										<Input
-											id='create-name'
-											value={serviceForm.name}
-											onChange={(e) =>
-												setServiceForm((prev) => ({
-													...prev,
-													name: e.target.value,
-												}))
-											}
-											placeholder="ex: Garde d'enfants"
-										/>
 									</div>
 
-									<div className='space-y-2'>
-										<Label htmlFor='create-type'>
-											Type de service
-										</Label>
-										<Select
-											value={serviceForm.service_type_id}
-											onValueChange={
-												handleServiceTypeChange
-											}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder='Sélectionner un type' />
-											</SelectTrigger>
-											<SelectContent>
-												{serviceTypes
-													.filter(
-														(type) => type.is_active
-													)
-													.map((type) => (
-														<SelectItem
-															key={type.id}
-															value={type.id.toString()}
-														>
-															{type.name}
-														</SelectItem>
-													))}
-											</SelectContent>
-										</Select>
+          {/* Filtres conditionnels */}
+          {showFilters && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Filtres</CardTitle>
+                <CardDescription>Filtrez les services selon vos critères</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <Label>Statut</Label>
+                    <select className="w-full p-2 border rounded">
+                      <option value="">Tous les statuts</option>
+                      <option value="active">Actif</option>
+                      <option value="pending">En attente</option>
+                      <option value="completed">Terminé</option>
+                      <option value="cancelled">Annulé</option>
+                    </select>
 									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='create-prestataire'>
-											Prestataire
-										</Label>
-										<Select
-											value={serviceForm.prestataire_id}
-											onValueChange={
-												handlePrestataireChange
-											}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder='Sélectionner un prestataire' />
-											</SelectTrigger>
-											<SelectContent>
-												{prestataires
-													.filter(
-														(prestataire) =>
-															prestataire.is_validated
-													)
-													.map((prestataire) => (
-														<SelectItem
-															key={prestataire.id}
-															value={prestataire.id.toString()}
-														>
-															{
-																prestataire.first_name
-															}{' '}
-															{
-																prestataire.last_name
-															}
-														</SelectItem>
-													))}
-											</SelectContent>
-										</Select>
+                  <div>
+                    <Label>Type de service</Label>
+                    <select className="w-full p-2 border rounded">
+                      <option value="">Tous les types</option>
+                      {serviceTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
 									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='create-pricing'>
-											Type de tarification
-										</Label>
-										<Select
-											value={serviceForm.pricing_type}
-											onValueChange={(
-												value:
-													| 'fixed'
-													| 'hourly'
-													| 'custom'
-											) =>
-												setServiceForm((prev) => ({
-													...prev,
-													pricing_type: value,
-												}))
-											}
-										>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='fixed'>
-													Prix fixe
-												</SelectItem>
-												<SelectItem value='hourly'>
-													Tarif horaire
-												</SelectItem>
-												<SelectItem value='custom'>
-													Sur mesure
-												</SelectItem>
-											</SelectContent>
-										</Select>
+                  <div>
+                    <Label>Localisation</Label>
+                    <Input placeholder="Filtrer par ville..." />
 									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='create-price'>
-											{serviceForm.pricing_type ===
-											'hourly'
-												? 'Tarif horaire (€)'
-												: 'Prix (€)'}
-										</Label>
-										<Input
-											id='create-price'
-											type='number'
-											min='0'
-											step='0.01'
-											value={serviceForm.price}
-											onChange={(e) =>
-												setServiceForm((prev) => ({
-													...prev,
-													price:
-														parseFloat(
-															e.target.value
-														) || 0,
-												}))
-											}
-										/>
 									</div>
-
-									{serviceForm.pricing_type === 'hourly' && (
-										<div className='space-y-2'>
-											<Label htmlFor='create-hourlyRate'>
-												Tarif horaire (€)
-											</Label>
-											<Input
-												id='create-hourlyRate'
-												type='number'
-												min='0'
-												step='0.01'
-												value={
-													serviceForm.hourly_rate ||
-													''
-												}
-												onChange={(e) =>
-													setServiceForm((prev) => ({
-														...prev,
-														hourly_rate:
-															parseFloat(
-																e.target.value
-															) || undefined,
-													}))
-												}
-											/>
+                <div className="flex gap-2">
+                  <Button size="sm">Appliquer</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowFilters(false)}>
+                    Fermer
+                  </Button>
 										</div>
-									)}
+              </CardContent>
+            </Card>
+          )}
 
-									<div className='space-y-2'>
-										<Label htmlFor='create-location'>
-											Localisation
-										</Label>
-										<div className='relative'>
-											<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-												<MapPin className='h-5 w-5 text-gray-400' />
-											</div>
-											<Input
-												id='create-location'
-												value={serviceForm.location}
-												onChange={(e) =>
-													setServiceForm((prev) => ({
-														...prev,
-														location:
-															e.target.value,
-													}))
-												}
-												onFocus={() =>
-													serviceForm.location
-														.length >= 3 &&
-													setShowAddressSuggestions(
-														true
-													)
-												}
-												className='pl-10 pr-10'
-												placeholder='Rechercher une adresse...'
-											/>
-											{isLoadingAddressSuggestions && (
-												<div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
-													<div className='animate-spin h-5 w-5 border-2 border-gray-300 border-t-green-500 rounded-full' />
-												</div>
-											)}
-										</div>
+          {/* Tableau des services */}
+          <Card>
+            <CardContent className="p-0">
+              <ServicesTable
+                services={services}
+                searchTerm={searchTerm}
+                onToggleStatus={handleToggleServiceStatus}
+                onDelete={handleDeleteService}
+                onEdit={openEditServiceDialog}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-										{/* Suggestions d'adresses */}
-										{showAddressSuggestions &&
-											addressSuggestions.length > 0 && (
-												<div
-													ref={addressSuggestionsRef}
-													className='absolute z-50 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto'
-												>
-													{addressSuggestions.map(
-														(suggestion, index) => (
-															<div
-																key={index}
-																className='px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center'
-																onClick={() =>
-																	selectAddress(
-																		suggestion
-																	)
-																}
-															>
-																<MapPin className='h-4 w-4 text-gray-400 mr-2 flex-shrink-0' />
-																<span className='text-sm'>
-																	{
-																		suggestion.label
-																	}
-																</span>
+        <TabsContent value="types" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Types de Services</h2>
+              <p className="text-gray-600">Gestion des catégories de services disponibles</p>
 															</div>
-														)
-													)}
-												</div>
-											)}
-									</div>
-
-									{serviceForm.pricing_type !== 'hourly' && (
-										<div className='space-y-2'>
-											<Label htmlFor='create-duration'>
-												Durée estimée (minutes)
-											</Label>
-											<Input
-												id='create-duration'
-												type='number'
-												min='0'
-												value={
-													serviceForm.duration || ''
-												}
-												onChange={(e) =>
-													setServiceForm((prev) => ({
-														...prev,
-														duration:
-															parseInt(
-																e.target.value
-															) || undefined,
-													}))
-												}
-												placeholder='ex: 60 pour 1 heure'
-											/>
-										</div>
-									)}
-
-									<div className='col-span-2 space-y-2'>
-										<Label htmlFor='create-description'>
-											Description
-										</Label>
-										<Textarea
-											id='create-description'
-											value={serviceForm.description}
-											onChange={(e) =>
-												setServiceForm((prev) => ({
-													...prev,
-													description: e.target.value,
-												}))
-											}
-											placeholder='Décrivez le service en détail...'
-											rows={3}
-										/>
-									</div>
-								</div>
-
-								<DialogFooter>
-									<Button
-										variant='outline'
-										onClick={() =>
-											setShowCreateService(false)
-										}
-									>
-										Annuler
+            <Button onClick={() => setShowNewTypeDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau Type
 									</Button>
-									<Button
-										onClick={handleCreateService}
-										disabled={loading}
-									>
-										{loading
-											? 'Création...'
-											: 'Créer le service'}
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
 					</div>
 
 					<Card>
-						<CardContent className='p-0'>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>
-											{t('services.name')}
-										</TableHead>
-										<TableHead>
-											{t('services.prestataire')}
-										</TableHead>
-										<TableHead>
-											{t('services.type')}
-										</TableHead>
-										<TableHead>
-											{t('services.price')}
-										</TableHead>
-										<TableHead>
-											{t('services.status')}
-										</TableHead>
-										<TableHead>
-											{t('common.actions')}
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredServices.map(
-										(service: ServiceData) => (
-											<TableRow key={service.id}>
-												<TableCell className='font-medium'>
-													{service.name}
-													<Badge
-														variant={
-															service.is_active
-																? 'default'
-																: 'secondary'
-														}
-														className='ml-2'
-													>
-														{service.is_active
-															? 'Actif'
-															: 'Inactif'}
-													</Badge>
-												</TableCell>
-												<TableCell>
-													<div className='flex flex-col'>
-														<span>
-															{
-																service.prestataireName
-															}
-														</span>
-														<span className='text-sm text-gray-500'>
-															{
-																service.prestataireEmail
-															}
-														</span>
-														{service.prestataireRating && (
-															<span className='flex items-center text-sm text-yellow-500'>
-																<Star className='h-4 w-4 mr-1' />
-																{service.prestataireRating.toFixed(
-																	1
-																)}
-															</span>
-														)}
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {serviceTypes.map((type) => (
+                  <div key={type.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{type.name}</h3>
+                      {type.description && (
+                        <p className="text-sm text-gray-600">{type.description}</p>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        {type.service_count || 0} service(s)
+                      </p>
 													</div>
-												</TableCell>
-												<TableCell>
-													{service.serviceTypeName ||
-														t(
-															'common.notAvailable'
-														)}
-												</TableCell>
-												<TableCell>
-													{service.pricing_type ===
-													'hourly' ? (
-														<span>
-															{
-																service.hourly_rate
-															}
-															€/h
-														</span>
-													) : (
-														<span>
-															{parseFloat(
-																service.price.toString()
-															).toFixed(2)}
-															€
-														</span>
-													)}
-												</TableCell>
-												<TableCell>
-													<Badge
-														variant={
-															service.status ===
-															'available'
-																? 'default'
-																: service.status ===
-																  'suspended'
-																? 'destructive'
-																: 'secondary'
-														}
-													>
-														{t(
-															`services.status.${service.status}`
-														)}
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={type.is_active ? "default" : "secondary"}>
+                        {type.is_active ? "Actif" : "Inactif"}
 													</Badge>
-												</TableCell>
-												<TableCell>
-													<div className='flex space-x-2'>
-														<Button
-															variant='outline'
-															size='icon'
-															onClick={() =>
-																handleViewServiceDetails(
-																	service
-																)
-															}
-														>
-															<Eye className='h-4 w-4' />
-														</Button>
-														<Button
-															variant='outline'
-															size='icon'
-															onClick={() =>
-																openEditService(
-																	service
-																)
-															}
-														>
-															<Pencil className='h-4 w-4' />
-														</Button>
-														<Button
-															variant='outline'
-															size='icon'
-															onClick={() =>
-																handleToggleServiceStatus(
-																	service.id,
-																	service.is_active
-																)
-															}
-														>
-															{service.is_active ? (
-																<XCircle className='h-4 w-4' />
-															) : (
-																<CheckCircle className='h-4 w-4' />
-															)}
-														</Button>
-														<Button
-															variant='outline'
-															size='icon'
-															onClick={() =>
-																handleDeleteService(
-																	service.id
-																)
-															}
-														>
-															<Trash2 className='h-4 w-4' />
-														</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleToggleTypeStatus(type)} title={type.is_active ? 'Désactiver' : 'Activer'} disabled={typeActionLoading}>
+                        {type.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openEditTypeDialog(type)} title="Modifier">
+                        <Edit className="h-4 w-4" />
+                      </Button>
 													</div>
-												</TableCell>
-											</TableRow>
-										)
-									)}
-								</TableBody>
-							</Table>
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value='types' className='space-y-4'>
-					<div className='flex justify-between items-center'>
-						<h3 className='text-lg font-medium'>
-							Types de services
-						</h3>
-						<Dialog
-							open={showCreateServiceType}
-							onOpenChange={setShowCreateServiceType}
-						>
-							<DialogTrigger asChild>
-								<Button>
-									<Plus className='h-4 w-4 mr-2' />
-									Nouveau Type
-								</Button>
-							</DialogTrigger>
-							<DialogContent>
-								<DialogHeader>
-									<DialogTitle>
-										Créer un type de service
-									</DialogTitle>
-								</DialogHeader>
-
-								<div className='space-y-4'>
-									<div className='space-y-2'>
-										<Label htmlFor='typeName'>
-											Nom du type
-										</Label>
-										<Input
-											id='typeName'
-											value={serviceTypeForm.name}
-											onChange={(e) =>
-												setServiceTypeForm((prev) => ({
-													...prev,
-													name: e.target.value,
-												}))
-											}
-											placeholder='ex: Services à domicile'
-										/>
 									</div>
-
-									<div className='space-y-2'>
-										<Label htmlFor='typeDescription'>
-											Description
-										</Label>
-										<Textarea
-											id='typeDescription'
-											value={serviceTypeForm.description}
-											onChange={(e) =>
-												setServiceTypeForm((prev) => ({
-													...prev,
-													description: e.target.value,
-												}))
-											}
-											placeholder='Description du type de service...'
-										/>
+                ))}
+                
+                {serviceTypes.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucun type de service trouvé
 									</div>
-								</div>
-
-								<DialogFooter>
-									<Button
-										variant='outline'
-										onClick={() =>
-											setShowCreateServiceType(false)
-										}
-									>
-										Annuler
-									</Button>
-									<Button
-										onClick={handleCreateServiceType}
-										disabled={loading}
-									>
-										{loading
-											? 'Création...'
-											: 'Créer le type'}
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
-					</div>
-
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-						{serviceTypes.map((type: ServiceTypeData) => (
-							<Card key={type.id}>
-								<CardHeader>
-									<div className='flex items-center justify-between'>
-										<CardTitle className='text-lg'>
-											{type.name}
-										</CardTitle>
-										<Badge
-											variant={
-												type.is_active
-													? 'default'
-													: 'secondary'
-											}
-										>
-											{type.is_active
-												? 'Actif'
-												: 'Inactif'}
-										</Badge>
-									</div>
-									<CardDescription>
-										{type.description}
-									</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className='flex items-center justify-between mb-3'>
-										<span className='text-sm text-gray-500'>
-											{type.service_count} service(s)
-										</span>
-									</div>
-									<div className='flex items-center gap-2'>
-										<Button
-											variant='outline'
-											size='sm'
-											onClick={() =>
-												openEditServiceType(type)
-											}
-										>
-											<Pencil className='h-4 w-4 mr-1' />
-											Modifier
-										</Button>
-										<Button
-											variant={
-												type.is_active
-													? 'outline'
-													: 'default'
-											}
-											size='sm'
-											className={
-												type.is_active
-													? 'text-red-600 border-red-200 hover:bg-red-50'
-													: 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100'
-											}
-											onClick={() =>
-												handleToggleServiceType(type.id)
-											}
-										>
-											{type.is_active ? (
-												<>
-													<XCircle className='h-4 w-4 mr-1' />
-													Désactiver
-												</>
-											) : (
-												<>
-													<CheckCircle className='h-4 w-4 mr-1' />
-													Activer
-												</>
-											)}
-										</Button>
-										<Button
-											variant='outline'
-											size='sm'
-											onClick={() =>
-												handleDeleteServiceType(type.id)
-											}
-										>
-											<Trash2 className='h-4 w-4 text-red-500' />
-										</Button>
+                )}
 									</div>
 								</CardContent>
 							</Card>
-						))}
-					</div>
 				</TabsContent>
 
-				<TabsContent value='prestataires' className='space-y-4'>
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-						{prestataires.map((prestataire: PrestataireData) => {
-							const getStatusInfo = (state: string) => {
-								switch (state) {
-									case 'active':
-										return {
-											label: 'Actif',
-											variant: 'default' as const,
-											color: 'text-green-600',
-										};
-									case 'inactive':
-										return {
-											label: 'Inactif',
-											variant: 'secondary' as const,
-											color: 'text-gray-600',
-										};
-									case 'closed':
-										return {
-											label: 'Compte suspendu',
-											variant: 'destructive' as const,
-											color: 'text-red-600',
-										};
-									default:
-										return {
-											label: state,
-											variant: 'secondary' as const,
-											color: 'text-gray-600',
-										};
-								}
-							};
-
-							const statusInfo = getStatusInfo(prestataire.state);
-							const createdDate = prestataire.created_at
-								? new Date(
-										prestataire.created_at
-								  ).toLocaleDateString('fr-FR')
-								: 'Date inconnue';
-
-							return (
-								<Card
-									key={prestataire.id}
-									className='hover:shadow-md transition-shadow'
-								>
-									<CardHeader>
-										<div className='flex items-center justify-between'>
-											<CardTitle className='text-lg'>
-												{prestataire.first_name}{' '}
-												{prestataire.last_name}
-											</CardTitle>
-											<Badge variant={statusInfo.variant}>
-												{statusInfo.label}
-											</Badge>
-										</div>
-										<CardDescription className='space-y-1'>
-											<div className='flex items-center gap-1'>
-												<Mail className='h-3 w-3' />
-												<span className='text-xs'>
-													{prestataire.email}
-												</span>
-											</div>
-											{prestataire.phone_number && (
-												<div className='flex items-center gap-1'>
-													<Phone className='h-3 w-3' />
-													<span className='text-xs'>
-														{
-															prestataire.phone_number
-														}
-													</span>
-												</div>
-											)}
-											{prestataire.city && (
-												<div className='flex items-center gap-1'>
-													<MapPin className='h-3 w-3' />
-													<span className='text-xs'>
-														{prestataire.city}
-													</span>
-												</div>
-											)}
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<div className='space-y-2'>
-											<div className='flex items-center justify-between text-sm'>
-												<span>
-													Domaine d'expertise:
-												</span>
-												<span className='font-medium'>
-													{prestataire.service_type ||
-														'Non spécifié'}
-												</span>
-											</div>
-											<div className='flex items-center justify-between text-sm'>
-												<span>Note moyenne:</span>
-												<span className='font-medium'>
-													{prestataire.rating &&
-													!isNaN(
-														prestataire.rating
-													) &&
-													prestataire.rating > 0
-														? `${prestataire.rating.toFixed(
-																1
-														  )}/5 ⭐`
-														: 'Aucune note'}
-												</span>
-											</div>
-											<div className='flex items-center justify-between text-sm'>
-												<span>Inscrit le:</span>
-												<span className='text-xs text-gray-600'>
-													{createdDate}
-												</span>
-											</div>
-										</div>
-										<div className='mt-4 flex gap-2'>
-											<Button
-												variant='outline'
-												size='sm'
-												onClick={() =>
-													handleViewPrestataireProfile(
-														prestataire.id
-													)
-												}
-											>
-												<User className='h-4 w-4 mr-1' />
-												Profil
-											</Button>
-											<Button
-												variant='outline'
-												size='sm'
-												onClick={() =>
-													handleViewPrestataireReviews(
-														prestataire.id
-													)
-												}
-											>
-												<Star className='h-4 w-4 mr-1' />
-												Avis
-											</Button>
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})}
-					</div>
+        <TabsContent value="bookings" className="space-y-4">
+          <BookingsManagement />
 				</TabsContent>
 
-				<TabsContent value='validations' className='space-y-4'>
-					<div className='space-y-4'>
+        <TabsContent value="ratings" className="space-y-4">
+          <RatingsManagement />
+				</TabsContent>
+
+        <TabsContent value="validation" className="space-y-4">
 						<Card>
 							<CardHeader>
-								<CardTitle className='flex items-center gap-2'>
-									<AlertCircle className='h-5 w-5 text-orange-500' />
-									Services en attente de validation
-								</CardTitle>
+              <CardTitle>Services en Attente de Validation</CardTitle>
 								<CardDescription>
-									Examinez et validez les nouveaux services
-									proposés par les prestataires avec
-									vérification des pièces justificatives
+                Services soumis par les prestataires en attente d'approbation
 								</CardDescription>
 							</CardHeader>
-							<CardContent>
-								<PendingServicesWithJustifications />
-							</CardContent>
-						</Card>
-
-						<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-							<Card>
-								<CardHeader className='pb-2'>
-									<CardTitle className='text-sm font-medium'>
-										Services validés ce mois
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className='text-2xl font-bold text-green-600'>
-										{
-											services.filter(
-												(s: ServiceData) =>
-													s.status === 'scheduled' &&
-													s.is_active
-											).length
-										}
-									</div>
-								</CardContent>
-							</Card>
-							<Card>
-								<CardHeader className='pb-2'>
-									<CardTitle className='text-sm font-medium'>
-										Services rejetés
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className='text-2xl font-bold text-red-600'>
-										{
-											services.filter(
-												(s: ServiceData) =>
-													s.status === 'cancelled'
-											).length
-										}
-									</div>
-								</CardContent>
-							</Card>
-							<Card>
-								<CardHeader className='pb-2'>
-									<CardTitle className='text-sm font-medium'>
-										Taux de validation
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className='text-2xl font-bold text-blue-600'>
-										{services.length > 0
-											? Math.round(
-													(services.filter(
-														(s: ServiceData) =>
-															s.status ===
-															'scheduled'
-													).length /
-														services.length) *
-														100
-											  )
-											: 0}
-										%
-									</div>
-								</CardContent>
-							</Card>
-						</div>
-					</div>
-				</TabsContent>
-
-				<TabsContent value='reservations' className='space-y-4'>
-					<div className='space-y-4'>
-						<Card>
-							<CardHeader>
-								<CardTitle className='flex items-center gap-2'>
-									<Calendar className='h-5 w-5 text-blue-500' />
-									Réservations des services
-								</CardTitle>
-								<CardDescription>
-									Consultez toutes les réservations effectuées
-									pour les services
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								{bookings.length > 0 ? (
-									<div className='space-y-4'>
-										{bookings.map(
-											(booking: BookingData) => (
-												<Card
-													key={booking.id}
-													className='border-l-4 border-l-blue-400'
-												>
-													<CardContent className='p-4'>
-														<div className='flex items-center justify-between mb-2'>
-															<div>
-																<h4 className='font-semibold text-lg'>
-																	{
-																		booking.service_name
-																	}
-																</h4>
-																<p className='text-sm text-gray-600'>
-																	Client:{' '}
-																	{
-																		booking.client_first_name
-																	}{' '}
-																	{
-																		booking.client_last_name
-																	}
-																</p>
-															</div>
-															<div className='flex items-center gap-2'>
-																<Badge
-																	variant={
-																		booking.status ===
-																		'confirmed'
-																			? 'default'
-																			: booking.status ===
-																			  'pending'
-																			? 'secondary'
-																			: booking.status ===
-																			  'completed'
-																			? 'outline'
-																			: 'destructive'
-																	}
-																>
-																	{
-																		booking.status
-																	}
-																</Badge>
-															</div>
-														</div>
-														<div className='grid grid-cols-2 gap-4 text-sm'>
-															<div>
-																<span className='font-medium'>
-																	Date de
-																	réservation:
-																</span>{' '}
-																{new Date(
-																	booking.booking_date
-																).toLocaleDateString(
-																	'fr-FR'
-																)}
-															</div>
-															<div>
-																<span className='font-medium'>
-																	Prix total:
-																</span>{' '}
-																{
-																	booking.total_price
-																}
-																€
-															</div>
-															<div>
-																<span className='font-medium'>
-																	Email
-																	client:
-																</span>{' '}
-																{
-																	booking.client_email
-																}
-															</div>
-															<div>
-																<span className='font-medium'>
-																	Créé le:
-																</span>{' '}
-																{new Date(
-																	booking.created_at
-																).toLocaleDateString(
-																	'fr-FR'
-																)}
-															</div>
-														</div>
-														{booking.notes && (
-															<div className='mt-3 p-3 bg-gray-50 rounded'>
-																<span className='font-medium'>
-																	Notes:
-																</span>{' '}
-																{booking.notes}
-															</div>
-														)}
-														<div className='flex gap-2 mt-4'>
-															<Button
-																size='sm'
-																variant='outline'
-																onClick={() =>
-																	getBookingDetails(
-																		booking.id
-																	)
-																}
-															>
-																<Eye className='h-4 w-4 mr-1' />
-																Détails
-															</Button>
-															{booking.status ===
-																'pending' && (
-																<>
-																	<Button
-																		size='sm'
-																		variant='outline'
-																		className='text-green-600 border-green-200 hover:bg-green-50'
-																		onClick={() =>
-																			updateBookingStatus(
-																				booking.id,
-																				'confirmed'
-																			)
-																		}
-																	>
-																		<CheckCircle className='h-4 w-4 mr-1' />
-																		Confirmer
-																	</Button>
-																	<Button
-																		size='sm'
-																		variant='outline'
-																		className='text-red-600 border-red-200 hover:bg-red-50'
-																		onClick={() =>
-																			updateBookingStatus(
-																				booking.id,
-																				'cancelled'
-																			)
-																		}
-																	>
-																		<XCircle className='h-4 w-4 mr-1' />
-																		Annuler
-																	</Button>
-																</>
-															)}
-														</div>
-													</CardContent>
+							<CardContent className="p-0">
+                  <PendingServicesTable pending={pendingServices} onValidate={handleValidateAction}/>
+                </CardContent>
 												</Card>
-											)
-										)}
-									</div>
-								) : (
-									<div className='text-center py-8'>
-										<Calendar className='h-12 w-12 text-gray-400 mx-auto mb-4' />
-										<h3 className='text-lg font-medium text-gray-900 mb-2'>
-											Aucune réservation
-										</h3>
-										<p className='text-gray-500'>
-											Aucune réservation n'a été effectuée
-											pour le moment.
-										</p>
-									</div>
-								)}
-							</CardContent>
-						</Card>
-
-						{bookingStats && (
-							<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-								<Card>
-									<CardHeader className='pb-2'>
-										<CardTitle className='text-sm font-medium'>
-											Total Réservations
-										</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<div className='text-2xl font-bold'>
-											{bookingStats.total}
-										</div>
-									</CardContent>
-								</Card>
-								<Card>
-									<CardHeader className='pb-2'>
-										<CardTitle className='text-sm font-medium'>
-											En Attente
-										</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<div className='text-2xl font-bold text-orange-600'>
-											{bookingStats.pending}
-										</div>
-									</CardContent>
-								</Card>
-								<Card>
-									<CardHeader className='pb-2'>
-										<CardTitle className='text-sm font-medium'>
-											Confirmées
-										</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<div className='text-2xl font-bold text-green-600'>
-											{bookingStats.confirmed}
-										</div>
-									</CardContent>
-								</Card>
-								<Card>
-									<CardHeader className='pb-2'>
-										<CardTitle className='text-sm font-medium'>
-											Terminées
-										</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<div className='text-2xl font-bold text-blue-600'>
-											{bookingStats.completed}
-										</div>
-									</CardContent>
-								</Card>
-							</div>
-						)}
-					</div>
 				</TabsContent>
 			</Tabs>
 
-			{/* Dialog pour afficher les détails du service */}
-			<Dialog
-				open={showServiceDetails}
-				onOpenChange={setShowServiceDetails}
-			>
-				<DialogContent className='max-w-3xl max-h-[90vh] overflow-y-auto'>
+      {/* Dialogues */}
+      <Dialog open={showNewServiceDialog} onOpenChange={setShowNewServiceDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Détails du service</DialogTitle>
+            <DialogTitle>Nouveau Service</DialogTitle>
+            <DialogDescription>
+              Créer un nouveau service sur la plateforme
+            </DialogDescription>
 					</DialogHeader>
-					{selectedService && (
-						<div className='space-y-6'>
-							{/* Informations principales */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <div className="space-y-4">
+            {/* Champ de sélection du prestataire pour l'admin */}
+            {isAdmin && (
 								<div>
-									<Label>Nom du service</Label>
-									<p className='font-medium text-lg'>
-										{selectedService.name}
-									</p>
+                <Label htmlFor="prestataire">Prestataire *</Label>
+                <Select value={selectedPrestataireId} onValueChange={setSelectedPrestataireId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Sélectionner un prestataire" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {prestataires.map((p) => {
+                      const firstName =
+                        p.user?.first_name ?? p.user?.firstName ?? p.user?.first ?? 'Prénom'
+                      const lastName =
+                        p.user?.last_name ?? p.user?.lastName ?? p.user?.last ?? 'Nom'
+                      return (
+                        <SelectItem key={p.id} value={p.id.toString()}>
+                          {firstName} {lastName} (ID: {p.id})
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
 								</div>
-								<div>
-									<Label>Type de service</Label>
-									<p className='font-medium'>
-										{selectedService.serviceTypeName ||
-											'Non spécifié'}
-									</p>
-								</div>
-								<div>
-									<Label>Statut</Label>
-									<div className='flex items-center gap-2'>
-										<Badge
-											variant={
-												selectedService.status ===
-												'available'
-													? 'default'
-													: selectedService.status ===
-													  'suspended'
-													? 'destructive'
-													: 'secondary'
-											}
-										>
-											{selectedService.status}
-										</Badge>
-										<Badge
-											variant={
-												selectedService.is_active
-													? 'default'
-													: 'secondary'
-											}
-										>
-											{selectedService.is_active
-												? 'Actif'
-												: 'Inactif'}
-										</Badge>
-									</div>
-								</div>
-								<div>
-									<Label>Localisation</Label>
-									<p className='font-medium flex items-center gap-1'>
-										<MapPin className='h-4 w-4 text-gray-500' />
-										{selectedService.location}
-									</p>
-								</div>
-							</div>
-
-							{/* Description */}
-							<div>
-								<Label>Description</Label>
-								<div className='mt-2 p-3 bg-gray-50 rounded-md border'>
-									<p className='text-sm leading-relaxed'>
-										{selectedService.description}
-									</p>
-								</div>
-							</div>
-
-							{/* Tarification */}
-							<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-								<div>
-									<Label>Type de tarification</Label>
-									<p className='font-medium'>
-										{selectedService.pricing_type ===
-										'fixed'
-											? 'Prix fixe'
-											: selectedService.pricing_type ===
-											  'hourly'
-											? 'Tarif horaire'
-											: 'Sur mesure'}
-									</p>
-								</div>
-								<div>
-									<Label>Prix</Label>
-									<p className='font-medium text-lg text-green-600'>
-										{selectedService.pricing_type ===
-											'hourly' &&
-										selectedService.hourly_rate
-											? `${selectedService.hourly_rate}€/h`
-											: `${parseFloat(
-													selectedService.price.toString()
-											  ).toFixed(2)}€`}
-									</p>
-								</div>
-								{selectedService.duration && (
+            )}
+            <div className="grid gap-4 md:grid-cols-2">
 									<div>
-										<Label>Durée</Label>
-										<p className='font-medium flex items-center gap-1'>
-											<Clock className='h-4 w-4 text-gray-500' />
-											{formatDuration(
-												selectedService.duration
-											)}
-										</p>
-									</div>
-								)}
+                <Label htmlFor="serviceName">Nom du service *</Label>
+                <Input
+                  id="serviceName"
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                  placeholder="Ex: Cours de piano, Ménage à domicile..."
+                  className="mt-1"
+                />
 							</div>
 
-							{/* Informations prestataire */}
-							<div className='border-t pt-4'>
-								<h4 className='font-semibold text-lg mb-3'>
-									Prestataire
-								</h4>
-								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
 									<div>
-										<Label>Nom</Label>
-										<p className='font-medium'>
-											{selectedService.prestataireName}
-										</p>
+                <Label htmlFor="serviceLocation">Localisation *</Label>
+                <Input
+                  id="serviceLocation"
+                  value={newServiceLocation}
+                  onChange={(e) => setNewServiceLocation(e.target.value)}
+                  placeholder="Ex: Paris, Lyon, Marseille..."
+                  className="mt-1"
+                />
 									</div>
-									<div>
-										<Label>Email</Label>
-										<p className='font-medium'>
-											{selectedService.prestataireEmail}
-										</p>
-									</div>
-									<div>
-										<Label>Note moyenne</Label>
-										<p className='font-medium flex items-center gap-1'>
-											<Star className='h-4 w-4 text-yellow-400 fill-current' />
-											{selectedService.prestataireRating !==
-												null &&
-											selectedService.prestataireRating >
-												0
-												? `${selectedService.prestataireRating.toFixed(
-														1
-												  )}/5`
-												: 'Aucune note'}
-										</p>
-									</div>
-								</div>
 							</div>
 
-							{/* Détails supplémentaires */}
-							<div className='grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4'>
-								<div className='flex items-center gap-2'>
-									<div
-										className={`w-3 h-3 rounded-full ${
-											selectedService.home_service
-												? 'bg-green-500'
-												: 'bg-gray-300'
-										}`}
-									></div>
-									<span className='text-sm'>
-										Service à domicile
-									</span>
+								<div>
+              <Label htmlFor="serviceDescription">Description *</Label>
+              <Textarea
+                id="serviceDescription"
+                value={newServiceDescription}
+                onChange={(e) => setNewServiceDescription(e.target.value)}
+                placeholder="Décrivez en détail le service proposé..."
+                className="mt-1"
+                rows={3}
+              />
 								</div>
-								<div className='flex items-center gap-2'>
-									<div
-										className={`w-3 h-3 rounded-full ${
-											selectedService.requires_materials
-												? 'bg-blue-500'
-												: 'bg-gray-300'
-										}`}
-									></div>
-									<span className='text-sm'>
-										Matériel requis
-									</span>
-								</div>
-								{selectedService.availability_description && (
-									<div>
-										<Label>Disponibilité</Label>
-										<p className='text-sm text-gray-600'>
-											{
-												selectedService.availability_description
-											}
-										</p>
-									</div>
-								)}
-							</div>
 
-							{/* Dates */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4'>
+            <div className="grid gap-4 md:grid-cols-3">
 								<div>
-									<Label>Créé le</Label>
-									<p className='text-sm text-gray-600'>
-										{new Date(
-											selectedService.created_at
-										).toLocaleDateString('fr-FR')}
-									</p>
+                <Label htmlFor="servicePrice">
+                  {newServicePricingType === 'hourly' ? 'Taux horaire (€) *' : 'Prix fixe (€) *'}
+                </Label>
+                <Input
+                  id="servicePrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newServicePrice}
+                  onChange={(e) => setNewServicePrice(e.target.value)}
+                  placeholder="0.00"
+                  className="mt-1"
+                />
 								</div>
-								<div>
-									<Label>Mis à jour le</Label>
-									<p className='text-sm text-gray-600'>
-										{new Date(
-											selectedService.updated_at
-										).toLocaleDateString('fr-FR')}
-									</p>
-								</div>
-							</div>
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
 
-			<Dialog
-				open={showPrestataireProfile}
-				onOpenChange={setShowPrestataireProfile}
-			>
-				<DialogContent className='max-w-2xl'>
-					<DialogHeader>
-						<DialogTitle>Profil du prestataire</DialogTitle>
-					</DialogHeader>
-					{selectedPrestataire && (
-						<div className='space-y-4'>
-							<div className='grid grid-cols-2 gap-4'>
-								<div>
-									<Label>Nom</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.first_name}{' '}
-										{selectedPrestataire.last_name}
-									</p>
-								</div>
-								<div>
-									<Label>Email</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.email}
-									</p>
-								</div>
-								<div>
-									<Label>Téléphone</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.phone_number ||
-											'Non renseigné'}
-									</p>
-								</div>
-								<div>
-									<Label>Ville</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.city ||
-											'Non renseignée'}
-									</p>
-								</div>
-								<div>
-									<Label>Type de service</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.service_type}
-									</p>
-								</div>
-								<div>
-									<Label>Note moyenne</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.rating &&
-										selectedPrestataire.rating > 0
-											? `${selectedPrestataire.rating.toFixed(
-													1
-											  )}/5 ⭐`
-											: 'Aucune note'}
-									</p>
-								</div>
-							</div>
-							{selectedPrestataire.address && (
-								<div>
-									<Label>Adresse</Label>
-									<p className='font-medium'>
-										{selectedPrestataire.address}
-									</p>
-								</div>
-							)}
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
-
-			<Dialog
-				open={showPrestataireReviews}
-				onOpenChange={setShowPrestataireReviews}
-			>
-				<DialogContent className='max-w-4xl max-h-[90vh] flex flex-col'>
-					<DialogHeader>
-						<DialogTitle>
-							Avis - {selectedPrestataire?.first_name}{' '}
-							{selectedPrestataire?.last_name}
-						</DialogTitle>
-					</DialogHeader>
-					<div className='flex-1 overflow-y-auto space-y-4 pr-2'>
-						{prestataireReviews.length > 0 ? (
-							<>
-								<div className='bg-gray-50 p-4 rounded-lg'>
-									<div className='grid grid-cols-2 md:grid-cols-4 gap-4 text-center'>
 										<div>
-											<div className='text-2xl font-bold text-blue-600'>
-												{detailedAverages.overall.toFixed(
-													1
-												)}
-											</div>
-											<div className='text-sm text-gray-600'>
-												Note moyenne
-											</div>
-										</div>
-										<div>
-											<div className='text-2xl font-bold text-green-600'>
-												{prestataireReviews.length}
-											</div>
-											<div className='text-sm text-gray-600'>
-												Total avis
-											</div>
-										</div>
-										<div>
-											<div className='text-2xl font-bold text-orange-600'>
-												{
-													prestataireReviews.filter(
-														(r) =>
-															r.is_verified_purchase
-													).length
-												}
-											</div>
-											<div className='text-sm text-gray-600'>
-												Achats vérifiés
-											</div>
-										</div>
-										<div>
-											<div className='text-2xl font-bold text-purple-600'>
-												{calculateSatisfactionRate(
-													prestataireReviews
-												)}
-												%
-											</div>
-											<div className='text-sm text-gray-600'>
-												Satisfaction
-											</div>
-										</div>
-									</div>
+                <Label htmlFor="servicePricingType">Type de tarification</Label>
+                <Select value={newServicePricingType} onValueChange={(value) => setNewServicePricingType(value as 'fixed' | 'hourly' | 'custom')}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Prix fixe</SelectItem>
+                    <SelectItem value="hourly">Horaire</SelectItem>
+                    <SelectItem value="custom">Personnalisé</SelectItem>
+                  </SelectContent>
+                </Select>
 								</div>
 
-								<div className='space-y-4'>
-									{(showAllReviews
-										? prestataireReviews
-										: prestataireReviews.slice(0, 5)
-									).map((review) => (
-										<Card
-											key={review.id}
-											className='border-l-4 border-l-blue-400'
-										>
-											<CardHeader className='pb-3'>
-												<div className='flex items-center justify-between'>
-													<div className='flex items-center gap-3'>
-														<div className='w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center'>
-															<span className='text-sm font-medium text-blue-600'>
-																{getInitials(
-																	review.client_name
-																)}
-															</span>
-														</div>
 														<div>
-															<div className='font-medium'>
-																{
-																	review.client_name
-																}
-															</div>
-															<div className='text-sm text-gray-500'>
-																{formatReviewDate(
-																	review.created_at
-																)}
-															</div>
-														</div>
-													</div>
-													<div className='flex items-center gap-2'>
-														{review.is_verified_purchase && (
-															<Badge
-																variant='outline'
-																className='text-green-600 border-green-200'
-															>
-																<CheckCircle className='h-3 w-3 mr-1' />
-																Vérifié
-															</Badge>
-														)}
-														<div className='flex items-center gap-1'>
-															<Star className='h-4 w-4 text-yellow-400 fill-current' />
-															<span className='font-medium'>
-																{formatRating(
-																	review.overall_rating
-																)}
-															</span>
-														</div>
-													</div>
-												</div>
-											</CardHeader>
-											<CardContent>
-												<div className='space-y-3'>
-													{/* Notes détaillées */}
-													<div className='grid grid-cols-2 md:grid-cols-4 gap-4 text-sm'>
-														<div className='flex items-center gap-2'>
-															<Clock className='h-4 w-4 text-gray-400' />
-															<span>
-																Ponctualité:{' '}
-																{formatRating(
-																	review.punctuality_rating
-																)}
-																/5
-															</span>
-														</div>
-														<div className='flex items-center gap-2'>
-															<Award className='h-4 w-4 text-gray-400' />
-															<span>
-																Qualité:{' '}
-																{formatRating(
-																	review.quality_rating
-																)}
-																/5
-															</span>
-														</div>
-														<div className='flex items-center gap-2'>
-															<MessageCircle className='h-4 w-4 text-gray-400' />
-															<span>
-																Communication:{' '}
-																{formatRating(
-																	review.communication_rating
-																)}
-																/5
-															</span>
-														</div>
-														<div className='flex items-center gap-2'>
-															<TrendingUp className='h-4 w-4 text-gray-400' />
-															<span>
-																Rapport Q/P:{' '}
-																{formatRating(
-																	review.value_rating
-																)}
-																/5
-															</span>
-														</div>
-													</div>
-													{review.comment && (
-														<div className='bg-gray-50 p-3 rounded'>
-															<p className='text-sm'>
-																{review.comment}
-															</p>
-														</div>
-													)}
-												</div>
-											</CardContent>
-										</Card>
-									))}
-								</div>
-
-								{prestataireReviews.length > 5 && (
-									<div className='text-center'>
-										<Button
-											variant='outline'
-											onClick={() =>
-												setShowAllReviews(
-													!showAllReviews
-												)
-											}
-										>
-											{showAllReviews
-												? 'Voir moins'
-												: `Voir tous les avis (${prestataireReviews.length})`}
-										</Button>
-									</div>
-								)}
-							</>
-						) : (
-							<div className='text-center py-8'>
-								<Star className='h-12 w-12 text-gray-400 mx-auto mb-4' />
-								<h3 className='text-lg font-medium text-gray-900 mb-2'>
-									Aucun avis
-								</h3>
-								<p className='text-gray-500'>
-									Ce prestataire n'a pas encore reçu d'avis.
-								</p>
-							</div>
-						)}
-					</div>
-				</DialogContent>
-			</Dialog>
-
-			<Dialog
-				open={!!editingService}
-				onOpenChange={(open) => !open && setEditingService(null)}
-			>
-				<DialogContent className='max-w-2xl max-h-[85vh] overflow-y-auto'>
-					<DialogHeader>
-						<DialogTitle>Modifier le service</DialogTitle>
-						<DialogDescription>
-							Modifiez les informations du service
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-						<div className='space-y-2'>
-							<Label htmlFor='edit-name'>Nom du service</Label>
+                <Label htmlFor="serviceDuration">Durée (min)</Label>
 							<Input
-								id='edit-name'
-								value={serviceForm.name}
-								onChange={(e) =>
-									setServiceForm((prev) => ({
-										...prev,
-										name: e.target.value,
-									}))
-								}
-								placeholder="ex: Garde d'enfants"
-							/>
+                  id="serviceDuration"
+                  type="number"
+                  min="0"
+                  value={newServiceDuration}
+                  onChange={(e) => setNewServiceDuration(e.target.value)}
+                  placeholder="60"
+                  className="mt-1"
+                />
+              </div>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='edit-type'>Type de service</Label>
-							<Select
-								value={serviceForm.service_type_id}
-								onValueChange={handleServiceTypeChange}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder='Sélectionner un type' />
+            <div>
+              <Label htmlFor="serviceType">Type de service *</Label>
+              <Select value={newServiceTypeId} onValueChange={setNewServiceTypeId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un type" />
 								</SelectTrigger>
 								<SelectContent>
-									{serviceTypes
-										.filter((type) => type.is_active)
-										.map((type) => (
-											<SelectItem
-												key={type.id}
-												value={type.id.toString()}
-											>
+                  {serviceTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
 												{type.name}
 											</SelectItem>
 										))}
@@ -2434,277 +1257,229 @@ export function ServicesManagement() {
 							</Select>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='edit-prestataire'>
-								Prestataire
-							</Label>
-							<Select
-								value={serviceForm.prestataire_id}
-								onValueChange={handlePrestataireChange}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder='Sélectionner un prestataire' />
-								</SelectTrigger>
-								<SelectContent>
-									{prestataires
-										.filter(
-											(prestataire) =>
-												prestataire.is_validated
-										)
-										.map((prestataire) => (
-											<SelectItem
-												key={prestataire.id}
-												value={prestataire.id.toString()}
-											>
-												{prestataire.first_name}{' '}
-												{prestataire.last_name}
-											</SelectItem>
-										))}
-								</SelectContent>
-							</Select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="serviceHomeService"
+                  checked={newServiceHomeService}
+                  onChange={(e) => setNewServiceHomeService(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="serviceHomeService">Service à domicile</Label>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='edit-pricing'>
-								Type de tarification
-							</Label>
-							<Select
-								value={serviceForm.pricing_type}
-								onValueChange={(
-									value: 'fixed' | 'hourly' | 'custom'
-								) =>
-									setServiceForm((prev) => ({
-										...prev,
-										pricing_type: value,
-									}))
-								}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value='fixed'>
-										Prix fixe
-									</SelectItem>
-									<SelectItem value='hourly'>
-										Tarif horaire
-									</SelectItem>
-									<SelectItem value='custom'>
-										Sur mesure
-									</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className='space-y-2'>
-							<Label htmlFor='edit-price'>
-								{serviceForm.pricing_type === 'hourly'
-									? 'Tarif horaire (€)'
-									: 'Prix (€)'}
-							</Label>
-							<Input
-								id='edit-price'
-								type='number'
-								min='0'
-								step='0.01'
-								value={serviceForm.price}
-								onChange={(e) =>
-									setServiceForm((prev) => ({
-										...prev,
-										price: parseFloat(e.target.value) || 0,
-									}))
-								}
-							/>
-						</div>
-
-						{serviceForm.pricing_type === 'hourly' && (
-							<div className='space-y-2'>
-								<Label htmlFor='edit-hourlyRate'>
-									Tarif horaire (€)
-								</Label>
-								<Input
-									id='edit-hourlyRate'
-									type='number'
-									min='0'
-									step='0.01'
-									value={serviceForm.hourly_rate ?? ''}
-									onChange={handleHourlyRateChange}
-								/>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="serviceRequiresMaterials"
+                  checked={newServiceRequiresMaterials}
+                  onChange={(e) => setNewServiceRequiresMaterials(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="serviceRequiresMaterials">Matériel requis</Label>
 							</div>
-						)}
-
-						<div className='space-y-2'>
-							<Label htmlFor='edit-location'>Localisation</Label>
-							<div className='relative'>
-								<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-									<MapPin className='h-5 w-5 text-gray-400' />
-								</div>
-								<Input
-									id='edit-location'
-									value={serviceForm.location}
-									onChange={(e) =>
-										setServiceForm((prev) => ({
-											...prev,
-											location: e.target.value,
-										}))
-									}
-									onFocus={() =>
-										serviceForm.location.length >= 3 &&
-										setShowAddressSuggestions(true)
-									}
-									className='pl-10 pr-10'
-									placeholder='Rechercher une adresse...'
-								/>
-								{isLoadingAddressSuggestions && (
-									<div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
-										<div className='animate-spin h-5 w-5 border-2 border-gray-300 border-t-green-500 rounded-full' />
-									</div>
-								)}
 							</div>
 
-							{showAddressSuggestions &&
-								addressSuggestions.length > 0 && (
-									<div
-										ref={addressSuggestionsRef}
-										className='absolute z-50 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto'
-									>
-										{addressSuggestions.map(
-											(suggestion, index) => (
-												<div
-													key={index}
-													className='px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center'
-													onClick={() =>
-														selectAddress(
-															suggestion
-														)
-													}
-												>
-													<MapPin className='h-4 w-4 text-gray-400 mr-2 flex-shrink-0' />
-													<span className='text-sm'>
-														{suggestion.label}
-													</span>
-												</div>
-											)
-										)}
-									</div>
-								)}
-						</div>
-
-						{serviceForm.pricing_type !== 'hourly' && (
-							<div className='space-y-2'>
-								<Label htmlFor='edit-duration'>
-									Durée estimée (minutes)
-								</Label>
-								<Input
-									id='edit-duration'
-									type='number'
-									min='0'
-									step='1'
-									value={serviceForm.duration ?? ''}
-									onChange={handleDurationChange}
-									placeholder='ex: 60 pour 1 heure'
-								/>
-							</div>
-						)}
-
-						<div className='col-span-2 space-y-2'>
-							<Label htmlFor='edit-description'>
-								Description
-							</Label>
-							<Textarea
-								id='edit-description'
-								value={serviceForm.description}
-								onChange={(e) =>
-									setServiceForm((prev) => ({
-										...prev,
-										description: e.target.value,
-									}))
-								}
-								placeholder='Décrivez le service en détail...'
-								rows={3}
-							/>
-						</div>
-					</div>
-
-					<DialogFooter>
+            <div className="flex gap-2 justify-end">
 						<Button
-							variant='outline'
-							onClick={() => setEditingService(null)}
+                variant="outline" 
+                onClick={() => {
+                  setShowNewServiceDialog(false);
+                  setNewServiceName('');
+                  setNewServiceDescription('');
+                  setNewServicePrice('');
+                  setNewServicePricingType('fixed');
+                  setNewServiceLocation('');
+                  setNewServiceTypeId('');
+                  setNewServiceHomeService(true);
+                  setNewServiceRequiresMaterials(false);
+                  setNewServiceDuration('');
+                  setSelectedPrestataireId(''); // Reset prestataire selection
+                }}
 						>
 							Annuler
 						</Button>
 						<Button
-							onClick={handleUpdateService}
-							disabled={loading}
+                onClick={handleCreateNewService}
+                disabled={
+                  !newServiceName.trim() || 
+                  !newServiceDescription.trim() || 
+                  !newServicePrice || 
+                  !newServiceLocation.trim() || 
+                  !newServiceTypeId ||
+                  (isAdmin && !selectedPrestataireId)
+                }
 						>
-							{loading ? 'Sauvegarde...' : 'Sauvegarder'}
+                Créer
 						</Button>
-					</DialogFooter>
+            </div>
+          </div>
 				</DialogContent>
 			</Dialog>
 
-			<Dialog
-				open={showEditServiceType}
-				onOpenChange={setShowEditServiceType}
-			>
+      <Dialog open={showNewTypeDialog} onOpenChange={setShowNewTypeDialog}>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Modifier le type de service</DialogTitle>
+            <DialogTitle>Nouveau Type de Service</DialogTitle>
 						<DialogDescription>
-							Modifiez les informations du type de service
+              Créer une nouvelle catégorie de services
 						</DialogDescription>
 					</DialogHeader>
-
-					<div className='space-y-4'>
-						<div className='space-y-2'>
-							<Label htmlFor='edit-typeName'>Nom du type</Label>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="typeName">Nom du type *</Label>
+              <Input
+                id="typeName"
+                value={newTypeName}
+                onChange={(e) => setNewTypeName(e.target.value)}
+                placeholder="Ex: Ménage, Jardinage, Bricolage..."
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="typeDescription">Description</Label>
 							<Input
-								id='edit-typeName'
-								value={serviceTypeForm.name}
-								onChange={(e) =>
-									setServiceTypeForm((prev) => ({
-										...prev,
-										name: e.target.value,
-									}))
-								}
-								placeholder='ex: Services à domicile'
+                id="typeDescription"
+                value={newTypeDescription}
+                onChange={(e) => setNewTypeDescription(e.target.value)}
+                placeholder="Description du type de service..."
+                className="mt-1"
 							/>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='edit-typeDescription'>
-								Description
-							</Label>
-							<Textarea
-								id='edit-typeDescription'
-								value={serviceTypeForm.description}
-								onChange={(e) =>
-									setServiceTypeForm((prev) => ({
-										...prev,
-										description: e.target.value,
-									}))
-								}
-								placeholder='Description du type de service...'
-							/>
-						</div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="typeActive"
+                checked={newTypeActive}
+                onChange={(e) => setNewTypeActive(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="typeActive">Type actif</Label>
 					</div>
 
-					<DialogFooter>
+            <div className="flex gap-2 justify-end">
 						<Button
-							variant='outline'
-							onClick={() => setShowEditServiceType(false)}
+                variant="outline" 
+                onClick={() => {
+                  setShowNewTypeDialog(false);
+                  setNewTypeName('');
+                  setNewTypeDescription('');
+                  setNewTypeActive(true);
+                }}
 						>
 							Annuler
 						</Button>
 						<Button
-							onClick={handleUpdateServiceType}
-							disabled={loading}
+                onClick={handleCreateNewType}
+                disabled={!newTypeName.trim()}
 						>
-							{loading ? 'Sauvegarde...' : 'Sauvegarder'}
+                Créer
 						</Button>
-					</DialogFooter>
+            </div>
+          </div>
 				</DialogContent>
 			</Dialog>
+
+      {/* Dialog Édition Type */}
+      <Dialog open={editTypeDialogOpen} onOpenChange={setEditTypeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le Type de Service</DialogTitle>
+            <DialogDescription>Mettre à jour les informations du type</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editTypeName">Nom *</Label>
+              <Input id="editTypeName" value={editTypeName} onChange={(e) => setEditTypeName(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="editTypeDescription">Description</Label>
+              <Input id="editTypeDescription" value={editTypeDescription} onChange={(e) => setEditTypeDescription(e.target.value)} className="mt-1" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input type="checkbox" id="editTypeActive" checked={editTypeActive} onChange={(e) => setEditTypeActive(e.target.checked)} className="rounded" />
+              <Label htmlFor="editTypeActive">Type actif</Label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setEditTypeDialogOpen(false)}>Annuler</Button>
+              <Button onClick={handleUpdateType} disabled={!editTypeName.trim()}>Enregistrer</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Édition Service */}
+      <Dialog open={editServiceDialogOpen} onOpenChange={setEditServiceDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le Service</DialogTitle>
+            <DialogDescription>Mettre à jour les informations du service</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label>Nom *</Label>
+                <Input value={editServiceName} onChange={e=>setEditServiceName(e.target.value)}/>
+              </div>
+              <div>
+                <Label>Localisation *</Label>
+                <Input value={editServiceLocation} onChange={e=>setEditServiceLocation(e.target.value)}/>
+              </div>
+            </div>
+            <div>
+              <Label>Description *</Label>
+              <Textarea rows={3} value={editServiceDescription} onChange={e=>setEditServiceDescription(e.target.value)}/>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label>Prix {editServicePricingType==='hourly'? '(€/h)*':'(€)*'}</Label>
+                <Input type="number" step="0.01" value={editServicePrice} onChange={e=>setEditServicePrice(e.target.value)}/>
+              </div>
+              <div>
+                <Label>Type de tarification</Label>
+                <Select value={editServicePricingType} onValueChange={v=>setEditServicePricingType(v as any)}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixe</SelectItem>
+                    <SelectItem value="hourly">Horaire</SelectItem>
+                    <SelectItem value="custom">Personnalisé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Durée (min)</Label>
+                <Input type="number" value={editServiceDuration} onChange={e=>setEditServiceDuration(e.target.value)}/>
+              </div>
+            </div>
+            <div>
+              <Label>Type de service *</Label>
+              <Select value={editServiceTypeId} onValueChange={setEditServiceTypeId}>
+                <SelectTrigger><SelectValue placeholder="Choisir"/></SelectTrigger>
+                <SelectContent>
+                  {serviceTypes.map(t=>(<SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" checked={editServiceHomeService} onChange={e=>setEditServiceHomeService(e.target.checked)} className="rounded"/>
+                <Label>Service à domicile</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" checked={editServiceRequiresMaterials} onChange={e=>setEditServiceRequiresMaterials(e.target.checked)} className="rounded"/>
+                <Label>Matériel requis</Label>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={()=>setEditServiceDialogOpen(false)}>Annuler</Button>
+              <Button onClick={handleUpdateService} disabled={!editServiceName.trim() || !editServiceLocation.trim() || !editServiceDescription.trim() || !editServicePrice}>Enregistrer</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 		</div>
 	);
 }
