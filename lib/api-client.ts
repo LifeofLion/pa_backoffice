@@ -1,7 +1,10 @@
+import { useAuthStore } from '@/src/stores/auth-store';
+
 // Utilitaire client API pour pa-backoffice
 export class ApiClient {
 	private static getAuthHeaders(): HeadersInit {
-		const token = localStorage.getItem('auth_token');
+		// Récupère le token directement depuis le store Zustand
+		const token = useAuthStore.getState().token;
 		return {
 			'Content-Type': 'application/json',
 			...(token && { Authorization: `Bearer ${token}` }),
@@ -76,11 +79,7 @@ export class ApiClient {
 		try {
 			const response = await fetch(url, {
 				method: 'DELETE',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem(
-						'auth_token'
-					)}`,
-				},
+				headers: this.getAuthHeaders(), // Utilise la nouvelle méthode
 			});
 
 			if (!response.ok) {
