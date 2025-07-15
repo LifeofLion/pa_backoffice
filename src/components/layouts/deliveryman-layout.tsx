@@ -95,8 +95,10 @@ export default function DeliverymanLayout({ children, activeRoute }: Deliveryman
   const handleLogout = async () => {
     try {
       await logout()
+      window.location.href = '/logout'
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error)
+      window.location.href = '/logout'
     }
   }
 
@@ -237,4 +239,4 @@ export default function DeliverymanLayout({ children, activeRoute }: Deliveryman
       </div>
     </div>
   )
-} 
+}

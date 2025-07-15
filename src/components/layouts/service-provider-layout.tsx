@@ -102,8 +102,10 @@ export default function ServiceProviderLayout({ children, activeRoute }: Service
   const handleLogout = async () => {
     try {
       await logout()
+      window.location.href = '/logout'
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error)
+      window.location.href = '/logout'
     }
   }
 
@@ -244,4 +246,4 @@ export default function ServiceProviderLayout({ children, activeRoute }: Service
       </div>
     </div>
   )
-} 
+}

@@ -35,18 +35,7 @@ export function AddUsersContent() {
 	const { toast } = useToast();
 	const router = useRouter();
 	const adminHook = useAdmin();
-	const { createUserWithEmail, loading, error, clearError } = adminHook;
-
-	// 🔍 DEBUG : Vérifier ce qui est importé
-	console.log('🔍 Debug importation hook useAdmin:', {
-		adminHook,
-		createUserWithEmail: typeof createUserWithEmail,
-		functionExists: !!createUserWithEmail,
-		loading: typeof loading,
-		error: typeof error,
-		clearError: typeof clearError,
-		allKeys: Object.keys(adminHook),
-	});
+	const { createCompleteUser, loading, error, clearError } = adminHook;
 	const [date, setDate] = useState<Date>();
 	const [isCreated, setIsCreated] = useState(false);
 	const [formData, setFormData] = useState<AdminUserCreationRequest>({
@@ -62,7 +51,9 @@ export function AddUsersContent() {
 		roles: [],
 		privileges: undefined,
 	});
-	const [validationErrors, setValidationErrors] = useState<string[]>([]);
+	const [validationErrors, setValidationErrors] = useState<
+		Record<string, string>
+	>({});
 
 	const handleInputChange = (field: string, value: string) => {
 		setFormData((prev) => ({
@@ -102,22 +93,21 @@ export function AddUsersContent() {
 		const frontendErrors =
 			FrontendValidators.validateAdminUserCreationRequest(formData);
 
-		if (frontendErrors.length > 0) {
+		if (Object.keys(frontendErrors).length > 0) {
 			setValidationErrors(frontendErrors);
 			toast({
 				variant: 'destructive',
 				title: '❌ Erreurs de validation',
-				description: `${frontendErrors.length} erreur(s) dans le formulaire`,
+				description: `Veuillez corriger les erreurs dans le formulaire.`,
 				duration: 6000,
 			});
 			return;
 		}
 
 		// Nettoyer les erreurs si tout est OK
-		setValidationErrors([]);
+		setValidationErrors({});
 
 		try {
-			console.log('🔍 Début création utilisateur...');
 			clearError(); // Nettoyer les erreurs précédentes
 
 			// Préparer les données selon le validator backend exact
@@ -146,69 +136,78 @@ export function AddUsersContent() {
 						: undefined,
 			};
 
-			console.log(
-				'🔍 Composant - Données envoyées au backend:',
-				userData
-			);
+			const result = await createCompleteUser(userData);
 
-			const createdUser = await createUserWithEmail(userData);
+			// ⚠️ VÉRIFIER SI LA CRÉATION A ÉCHOUÉ
+			if (!result || !result.success) {
+				// Gestion spécifique des erreurs d'email déjà existant
+				if (error && error.toLowerCase().includes('email')) {
+					setValidationErrors((prev) => ({
+						...prev,
+						email: error,
+					}));
+					return;
+				}
 
-			console.log('🔍 Composant - Réponse du hook:', createdUser);
-
-			// ⚠️ VÉRIFIER SI L'UTILISATEUR A BIEN ÉTÉ CRÉÉ
-			if (!createdUser) {
-				console.error(
-					'❌ Composant - createUserWithEmail a retourné null'
-				);
-				// N'afficher le toast d'erreur que si le hook n'a pas déjà affiché d'erreur
-				if (!error) {
+				// Autres erreurs génériques
+				if (error) {
 					toast({
 						variant: 'destructive',
 						title: '❌ Erreur de création',
-						description:
-							"La création d'utilisateur a échoué sans message d'erreur détaillé",
+						description: error,
+						duration: 8000,
+					});
+				} else {
+					toast({
+						variant: 'destructive',
+						title: '❌ Erreur de création',
+						description: "La création d'utilisateur a échoué",
 						duration: 8000,
 					});
 				}
 				return;
 			}
 
-			console.log(
-				'✅ Composant - Utilisateur créé avec succès:',
-				createdUser
-			);
-
-			// Marquer comme créé pour l'interface utilisateur
+			// ✅ SUCCÈS : Marquer comme créé pour l'interface utilisateur
 			setIsCreated(true);
 
-			// Toast de succès avec plus de détails
+			// Toast de succès avec détails des rôles créés
+			const rolesText =
+				result.rolesCreated && result.rolesCreated.length > 0
+					? ` avec les rôles : ${result.rolesCreated.join(', ')}`
+					: ' (client automatique inclus)';
+
 			toast({
 				title: '✅ Succès !',
-				description: `Utilisateur "${formData.first_name} ${formData.last_name}" créé avec succès (Client automatique inclus)`,
+				description: `Utilisateur "${formData.first_name} ${formData.last_name}" créé avec succès${rolesText}`,
 				variant: 'default',
-				duration: 5000, // Afficher plus longtemps
+				duration: 5000,
 			});
 
 			// Attendre un peu avant de rediriger pour que l'utilisateur voie le toast
 			setTimeout(() => {
-				console.log('🔄 Redirection vers /admin/users');
 				router.push('/admin/users');
 			}, 2000);
 		} catch (error) {
-			console.error(
-				'❌ Composant - Erreur lors de la création (catch):',
-				error
-			);
-
-			// Toast d'erreur avec plus de détails
+			// Gestion d'erreur propre sans console.error
 			const errorMessage =
 				error instanceof Error ? error.message : 'Erreur inconnue';
-			toast({
-				variant: 'destructive',
-				title: '❌ Erreur de création (Exception)',
-				description: `Exception lors de la création: ${errorMessage}`,
-				duration: 8000, // Afficher plus longtemps pour les erreurs
-			});
+
+			// Gestion spécifique pour les erreurs d'email
+			if (errorMessage.toLowerCase().includes('email')) {
+				setValidationErrors((prev) => ({
+					...prev,
+					email: 'Cette adresse email est déjà utilisée',
+				}));
+			} else {
+				// Autres erreurs en toast
+				toast({
+					variant: 'destructive',
+					title: '❌ Erreur de création',
+					description: errorMessage,
+					duration: 8000,
+				});
+			}
 		}
 	};
 
@@ -226,29 +225,25 @@ export function AddUsersContent() {
 
 			<h1 className='text-2xl font-bold'>{t('admin.addUser')}</h1>
 
-			{/* ✅ AFFICHAGE DES ERREURS DE VALIDATION FRONTEND */}
-			{validationErrors.length > 0 && (
+			{/* 🚨 GESTION DE L'ERREUR GLOBALE DU HOOK (si ce n'est pas une erreur de champ spécifique) */}
+			{error && !Object.keys(validationErrors).length && (
 				<div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-md'>
 					<h3 className='text-red-800 font-medium text-sm mb-2'>
-						❌ Erreurs de validation ({validationErrors.length})
+						🚨 Erreur serveur
 					</h3>
-					<ul className='list-disc list-inside text-red-700 text-sm space-y-1'>
-						{validationErrors.map((error, index) => (
-							<li key={index}>{error}</li>
-						))}
-					</ul>
+					<p className='text-red-700 text-sm'>{error}</p>
 				</div>
 			)}
 
 			{/* Message d'information si erreur du hook */}
-			{error && (
+			{/* {error && (
 				<div className='bg-red-50 border border-red-200 rounded-lg p-4'>
 					<h3 className='text-red-800 font-medium'>
 						🚨 Erreur détectée
 					</h3>
 					<p className='text-red-700 text-sm mt-1'>{error}</p>
 				</div>
-			)}
+			)} */}
 
 			{/* Message de succès visible */}
 			{isCreated && (
@@ -290,6 +285,11 @@ export function AddUsersContent() {
 								minLength={2}
 								maxLength={50}
 							/>
+							{validationErrors.first_name && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.first_name}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -312,6 +312,11 @@ export function AddUsersContent() {
 								minLength={2}
 								maxLength={50}
 							/>
+							{validationErrors.last_name && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.last_name}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -330,6 +335,11 @@ export function AddUsersContent() {
 								}
 								required
 							/>
+							{validationErrors.email && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.email}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -353,6 +363,11 @@ export function AddUsersContent() {
 								minLength={8}
 								maxLength={100}
 							/>
+							{validationErrors.password && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.password}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -408,6 +423,11 @@ export function AddUsersContent() {
 								maxLength={100}
 								placeholder='Paris, Londres, Berlin...'
 							/>
+							{validationErrors.city && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.city}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -431,6 +451,11 @@ export function AddUsersContent() {
 								maxLength={20}
 								placeholder='75001, SW1A 1AA, 10115...'
 							/>
+							{validationErrors.postalCode && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.postalCode}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -464,6 +489,11 @@ export function AddUsersContent() {
 									<SelectItem value='Italy'>Italy</SelectItem>
 								</SelectContent>
 							</Select>
+							{validationErrors.country && (
+								<p className='text-red-500 text-xs mt-1'>
+									{validationErrors.country}
+								</p>
+							)}
 						</div>
 
 						<div>

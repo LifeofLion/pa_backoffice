@@ -5,9 +5,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
 export const ratingService = {
 	getAllRatings: async (): Promise<RatingData[]> => {
-		const response = await ApiClient.get(
-			`${API_BASE_URL}/api/admin/ratings`
-		);
+		const response = await ApiClient.get(`${API_BASE_URL}/ratings`);
 		// La réponse peut être un objet paginé { data: [...] } ou un tableau simple.
 		if (
 			response &&

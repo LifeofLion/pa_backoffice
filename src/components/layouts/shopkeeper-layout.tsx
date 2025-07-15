@@ -88,8 +88,10 @@ export default function ShopkeeperLayout({ children, activeRoute }: ShopkeeperLa
   const handleLogout = async () => {
     try {
       await logout()
+      window.location.href = '/logout'
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error)
+      window.location.href = '/logout'
     }
   }
 
@@ -230,4 +232,4 @@ export default function ShopkeeperLayout({ children, activeRoute }: ShopkeeperLa
       </div>
     </div>
   )
-} 
+}

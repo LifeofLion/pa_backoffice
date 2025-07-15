@@ -813,15 +813,15 @@ export class FrontendValidators {
 
 	static validateAdminUserCreationRequest(
 		data: AdminUserCreationRequest
-	): string[] {
-		const errors: string[] = [];
+	): Record<string, string> {
+		const errors: Record<string, string> = {};
 
 		if (
 			!data.first_name ||
 			data.first_name.trim().length < 2 ||
 			data.first_name.trim().length > 50
 		) {
-			errors.push('Le prénom doit faire entre 2 et 50 caractères');
+			errors.first_name = 'Le prénom doit faire entre 2 et 50 caractères';
 		}
 
 		if (
@@ -829,11 +829,11 @@ export class FrontendValidators {
 			data.last_name.trim().length < 2 ||
 			data.last_name.trim().length > 50
 		) {
-			errors.push('Le nom doit faire entre 2 et 50 caractères');
+			errors.last_name = 'Le nom doit faire entre 2 et 50 caractères';
 		}
 
-		if (!data.email || !data.email.includes('@')) {
-			errors.push('Email invalide');
+		if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+			errors.email = 'Email invalide';
 		}
 
 		if (
@@ -841,7 +841,8 @@ export class FrontendValidators {
 			data.password.length < 8 ||
 			data.password.length > 100
 		) {
-			errors.push('Le mot de passe doit faire entre 8 et 100 caractères');
+			errors.password =
+				'Le mot de passe doit faire entre 8 et 100 caractères';
 		}
 
 		if (
@@ -849,7 +850,7 @@ export class FrontendValidators {
 			data.city.trim().length < 2 ||
 			data.city.trim().length > 100
 		) {
-			errors.push('La ville doit faire entre 2 et 100 caractères');
+			errors.city = 'La ville doit faire entre 2 et 100 caractères';
 		}
 
 		if (
@@ -857,7 +858,8 @@ export class FrontendValidators {
 			data.postalCode.trim().length < 2 ||
 			data.postalCode.trim().length > 20
 		) {
-			errors.push('Le code postal doit faire entre 2 et 20 caractères');
+			errors.postalCode =
+				'Le code postal doit faire entre 2 et 20 caractères';
 		}
 
 		if (
@@ -865,7 +867,7 @@ export class FrontendValidators {
 			data.country.trim().length < 2 ||
 			data.country.trim().length > 100
 		) {
-			errors.push('Le pays doit faire entre 2 et 100 caractères');
+			errors.country = 'Le pays doit faire entre 2 et 100 caractères';
 		}
 
 		return errors;
@@ -1925,6 +1927,7 @@ export interface RatingData {
 	user_name: string;
 	user_email: string;
 	item_name: string; // nom du service/prestataire évalué
+	reviewedUserName: string; // nom et prénom de l'utilisateur évalué
 }
 
 /**

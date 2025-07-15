@@ -24,12 +24,12 @@ export default function Logout() {
         // Petit délai pour l'UX
         await new Promise((resolve) => setTimeout(resolve, 1000))
         
-        // Redirection automatique
-        router.push('/')
+        // Redirection automatique vers la page de logout
+        router.push('/logout')
       } catch (error) {
         console.error('Logout error:', error)
-        // Même en cas d'erreur, on redirige l'utilisateur
-        router.push('/')
+        // Même en cas d'erreur, on redirige l'utilisateur vers logout
+        router.push('/logout')
       }
     }
 
@@ -57,4 +57,4 @@ export default function Logout() {
       </div>
     </div>
   )
-} 
+}

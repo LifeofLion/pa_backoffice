@@ -27,6 +27,7 @@ const transformRatingData = (rawRating: any): RatingData => {
 			: `Utilisateur #${rawRating.reviewerId}`,
 		user_email: reviewer ? reviewer.email : '',
 		item_name: rawRating.itemName || `Item #${rawRating.ratingForId}`,
+		reviewedUserName: rawRating.reviewedUserName || 'Utilisateur inconnu',
 	};
 };
 

@@ -94,12 +94,12 @@ export default function ClientLayout({ children, activeRoute }: ClientLayoutProp
   const handleLogout = async () => {
     try {
       await logout()
-      // Rediriger vers login après déconnexion réussie
-      window.location.href = '/login'
+      // Rediriger vers logout après déconnexion réussie
+      window.location.href = '/logout'
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error)
       // Même en cas d'erreur, on force la redirection
-      window.location.href = '/login'
+      window.location.href = '/logout'
     }
   }
 
@@ -250,4 +250,4 @@ export default function ClientLayout({ children, activeRoute }: ClientLayoutProp
       </main>
     </div>
   )
-} 
+}

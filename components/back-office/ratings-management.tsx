@@ -568,7 +568,7 @@ export function RatingsManagement() {
 							<TableRow>
 								<TableHead>ID</TableHead>
 								<TableHead>Utilisateur</TableHead>
-								<TableHead>Type</TableHead>
+								<TableHead>Utilisateur évalué</TableHead>
 								<TableHead>Élément évalué</TableHead>
 								<TableHead>Note</TableHead>
 								<TableHead>Commentaire</TableHead>
@@ -594,13 +594,10 @@ export function RatingsManagement() {
 										</div>
 									</TableCell>
 									<TableCell>
-										<Badge
-											className={getTypeColor(
-												rating.rating_type
-											)}
-										>
-											{getTypeLabel(rating.rating_type)}
-										</Badge>
+										<div className='font-medium'>
+											{rating.reviewedUserName ||
+												'Utilisateur inconnu'}
+										</div>
 									</TableCell>
 									<TableCell>
 										<div className='font-medium'>

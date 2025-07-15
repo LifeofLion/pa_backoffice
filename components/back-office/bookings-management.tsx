@@ -49,7 +49,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-	Calendar,
 	Clock,
 	MapPin,
 	Euro,
@@ -61,7 +60,16 @@ import {
 	Edit,
 	Trash2,
 	Eye,
+	CalendarIcon,
 } from 'lucide-react';
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 export function BookingsManagement() {
 	const { t } = useLanguage();
@@ -617,7 +625,7 @@ export function BookingsManagement() {
 						<CardTitle className='text-sm font-medium'>
 							Total Réservations
 						</CardTitle>
-						<Calendar className='h-4 w-4 text-muted-foreground' />
+						<CalendarIcon className='h-4 w-4 text-muted-foreground' />
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold'>{stats.total}</div>
@@ -1078,12 +1086,46 @@ export function BookingsManagement() {
 						</div>
 						<div>
 							<Label>Date / heure *</Label>
-							<Input
-								type='datetime-local'
-								value={bookingDate}
-								onChange={(e) => setBookingDate(e.target.value)}
-								className='mt-1'
-							/>
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										variant={'outline'}
+										className={cn(
+											'w-full justify-start text-left font-normal mt-1',
+											!bookingDate &&
+												'text-muted-foreground'
+										)}
+									>
+										<CalendarIcon className='mr-2 h-4 w-4' />
+										{bookingDate ? (
+											new Date(
+												bookingDate
+											).toLocaleDateString()
+										) : (
+											<span>Choisir une date</span>
+										)}
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className='w-auto p-0'>
+									<Calendar
+										mode='single'
+										selected={
+											bookingDate
+												? new Date(bookingDate)
+												: undefined
+										}
+										onSelect={(date) =>
+											setBookingDate(
+												date
+													? format(date, 'yyyy-MM-dd')
+													: ''
+											)
+										}
+										fromDate={new Date()}
+										initialFocus
+									/>
+								</PopoverContent>
+							</Popover>
 						</div>
 						<div>
 							<Label>Notes</Label>

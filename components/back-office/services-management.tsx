@@ -593,7 +593,13 @@ export function ServicesManagement() {
 		const active = servicesData.filter(
 			(s) =>
 				s.is_active &&
-				['available', 'active', 'scheduled', 'in_progress', 'paid'].includes(s.status)
+				[
+					'available',
+					'active',
+					'scheduled',
+					'in_progress',
+					'paid',
+				].includes(s.status)
 		).length;
 		const pending = servicesData.filter(
 			(s) => s.status === 'pending'
@@ -1116,24 +1122,22 @@ export function ServicesManagement() {
 			try {
 				console.log(`🔄 Suppression service ${serviceId}`);
 
-				// Utiliser l'API client existant
 				await apiClient.deleteService(serviceId.toString());
-
-				// Mise à jour locale
-				setServices((prev) => {
-					const updated = prev.filter(
-						(service) => service.id !== serviceId
-					);
-					calculateStats(updated);
-					return updated;
-				});
 
 				toast({
 					title: 'Succès',
 					description: 'Service supprimé avec succès',
 				});
+
+				// Recharger les données pour refléter la suppression
+				await loadServices();
 			} catch (error) {
 				console.error('❌ Erreur suppression service:', error);
+
+				// Même en cas d'erreur de parsing de réponse, si le service
+				// a été supprimé, il est bon de rafraîchir la liste.
+				await loadServices();
+
 				toast({
 					title: 'Erreur',
 					description:
@@ -1143,7 +1147,7 @@ export function ServicesManagement() {
 				});
 			}
 		},
-		[toast, calculateStats]
+		[toast, loadServices]
 	);
 
 	// === Fonction pour ouvrir le dialog d’édition ===
