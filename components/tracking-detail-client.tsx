@@ -405,11 +405,7 @@ export default function TrackingDetailClient({ id }: { id: string }) {
         </div>
       </main>
 
-      <footer className="bg-white border-t mt-12 py-6">
-        <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>&copy; 2025 EcoDeli. {t("common.allRightsReserved")}</p>
-        </div>
-      </footer>
+
     </div>
   )
 }

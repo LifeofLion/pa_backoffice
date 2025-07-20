@@ -59,43 +59,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-green-800 text-white py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between mb-8">
-            <div className="mb-6 md:mb-0">
-              <Image src="/logo.png" alt="EcoDeli" width={120} height={40} className="h-auto mb-2" />
-            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-8 mt-6">
-              <div>
-                <Link href="/legal-notice">
-                  <p className="text-sm font-bold mb-4">Legal Notice</p>
-                </Link>
-              </div>
-              <div>
-                <Link href="/app_client">
-                  <p className="text-sm font-bold mb-4">Client Space</p>
-                </Link>
-              </div>
-              <div>
-                <Link href="/app_service-provider">
-                  <p className="text-sm font-bold mb-4">Service Provider</p>
-                </Link>
-              </div>
-              <div>
-                <Link href="/app_shopkeeper">
-                  <p className="text-sm font-bold mb-4">Shopkeeper</p>
-                </Link>
-              </div>
-              <div>
-                <Link href="/app_deliveryman">
-                  <p className="text-sm font-bold mb-4">Delivery man</p>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   )
-} 
+}
