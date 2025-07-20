@@ -242,21 +242,7 @@ export default function ComplaintClient() {
                     <span>{t("common.editAccount")}</span>
                   </Link>
 
-                  <div className="border-t border-gray-100 my-1"></div>
 
-                  <div className="px-4 py-1 text-xs text-gray-500">{t("common.registerAs")}</div>
-
-                  <Link href="/register/delivery-man" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                    {t("common.deliveryMan")}
-                  </Link>
-
-                  <Link href="/register/shopkeeper" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                    {t("common.shopkeeper")}
-                  </Link>
-
-                  <Link href="/register/service-provider" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                    {t("common.serviceProvider")}
-                  </Link>
 
                   <div className="border-t border-gray-100 my-1"></div>
 

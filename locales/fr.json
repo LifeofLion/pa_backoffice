@@ -2,9 +2,7 @@
 	"common": {
 		"login": "Connexion",
 		"logout": "Déconnexion",
-		"signup": "Créer un compte",
 		"editAccount": "Modifier votre compte",
-		"registerAs": "S'inscrire en tant que :",
 		"deliveryMan": "Livreur",
 		"shopkeeper": "Commerçant",
 		"serviceProvider": "Prestataire de service",

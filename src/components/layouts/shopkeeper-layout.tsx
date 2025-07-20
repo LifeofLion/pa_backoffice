@@ -194,21 +194,7 @@ export default function ShopkeeperLayout({ children, activeRoute }: ShopkeeperLa
                     {t('common.accessToSpace')}
                   </div>
 
-                  <Link 
-                    href="/register/service-provider" 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    {t('common.serviceProvider')}
-                  </Link>
 
-                  <Link 
-                    href="/register/deliveryman" 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    {t('common.deliveryMan')}
-                  </Link>
 
                   <div className="border-t border-gray-100 my-1"></div>
 

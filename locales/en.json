@@ -2,9 +2,7 @@
 	"common": {
 		"login": "Login",
 		"logout": "Logout",
-		"signup": "Sign Up",
 		"editAccount": "Edit Account",
-		"registerAs": "Register as:",
 		"deliveryMan": "Delivery Man",
 		"shopkeeper": "Shopkeeper",
 		"serviceProvider": "Service Provider",

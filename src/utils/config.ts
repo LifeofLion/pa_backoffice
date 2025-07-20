@@ -70,7 +70,6 @@ export const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/signin',
-  '/register',
   '/forgot-password',
   '/verify-email',
   '/verification-success',
@@ -83,7 +82,6 @@ export const PUBLIC_ROUTES = [
 export const AUTH_REDIRECT_ROUTES = [
   '/login',
   '/signin',
-  '/register',
 ]
 
 /**
@@ -119,4 +117,4 @@ export const APP_DEFAULTS = {
   DATE_FORMAT: 'dd/MM/yyyy',
   TIME_FORMAT: 'HH:mm',
   DATETIME_FORMAT: 'dd/MM/yyyy HH:mm',
-} as const 
+} as const

@@ -11,7 +11,6 @@ interface AuthStore extends AuthState {
   // Actions d'authentification
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>
   logout: () => Promise<void>
-  register: (userData: any) => Promise<void>
 
   // Actions de gestion utilisateur
   getCurrentUser: () => Promise<void>
@@ -114,34 +113,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      register: async (userData: any) => {
-        set({ isLoading: true, error: null })
 
-        try {
-          const response = await apiClient.register(userData)
-
-          // Stocker le token en session par défaut pour les nouveaux comptes
-          sessionStorage.setItem('authToken', response.token)
-
-          set({
-            user: response.user,
-            token: response.token,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          })
-        } catch (error) {
-          const errorMessage = getErrorMessage(error)
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: errorMessage,
-          })
-          throw error
-        }
-      },
 
       // =======================================================================
       // ACTIONS DE GESTION UTILISATEUR
@@ -285,7 +257,6 @@ export const useUser = () => {
 export const useAuth = () => {
   const login = useAuthStore((state) => state.login)
   const logout = useAuthStore((state) => state.logout)
-  const register = useAuthStore((state) => state.register)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isLoading = useAuthStore((state) => state.isLoading)
   const error = useAuthStore((state) => state.error)
@@ -295,7 +266,6 @@ export const useAuth = () => {
   return {
     login,
     logout,
-    register,
     isAuthenticated,
     isLoading,
     error,

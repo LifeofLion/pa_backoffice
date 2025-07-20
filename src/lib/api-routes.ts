@@ -18,7 +18,6 @@ export const API_CONFIG = {
  */
 export const AUTH_ROUTES = {
 	LOGIN: '/auth/login',
-	REGISTER: '/auth/register',
 	ME: '/auth/me',
 	LOGOUT: '/auth/logout',
 } as const;
@@ -583,4 +582,4 @@ export const API_ROUTES = {
   EMAIL: EMAIL_ROUTES,
   STRIPE: STRIPE_ROUTES,
   WALLET: WALLET_ROUTES,
-} as const 
+} as const

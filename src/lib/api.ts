@@ -258,19 +258,7 @@ class ApiClient {
 		return response;
 	}
 
-	async register(userData: any): Promise<{ token: string; user: User }> {
-		const response = await this.post<{ token: string; user: User }>(
-			API_ROUTES.AUTH.REGISTER,
-			userData
-		);
 
-		// Stocker automatiquement le token
-		if (response.token) {
-			this.setToken(response.token);
-		}
-
-		return response;
-	}
 
 	async getCurrentUser(): Promise<User> {
 		return this.get<User>(API_ROUTES.AUTH.ME);

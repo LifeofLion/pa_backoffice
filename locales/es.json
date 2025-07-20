@@ -2,9 +2,7 @@
 	"common": {
 		"login": "Iniciar sesión",
 		"logout": "Cerrar sesión",
-		"signup": "Crear cuenta",
 		"editAccount": "Editar tu cuenta",
-		"registerAs": "Registrarse como:",
 		"deliveryMan": "Repartidor",
 		"shopkeeper": "Comerciante",
 		"serviceProvider": "Proveedor de servicios",

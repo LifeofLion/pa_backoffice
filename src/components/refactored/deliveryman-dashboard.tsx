@@ -312,25 +312,7 @@ export default function DeliverymanDashboard() {
                     <span>{t("common.clientSpace")}</span>
                   </Link>
 
-                  <div className="border-t border-gray-100 my-1"></div>
 
-                  <div className="px-4 py-1 text-xs text-gray-500">{t("common.accessToSpace")}</div>
-
-                  <Link 
-                    href="/register/shopkeeper" 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    {t("common.shopkeeper")}
-                  </Link>
-
-                  <Link 
-                    href="/register/service-provider" 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    {t("common.serviceProvider")}
-                  </Link>
 
                   <div className="border-t border-gray-100 my-1"></div>
 
@@ -561,4 +543,4 @@ function Clock(props: React.SVGProps<SVGSVGElement>) {
       <polyline points="12 6 12 12 16 14" />
     </svg>
   )
-} 
+}
