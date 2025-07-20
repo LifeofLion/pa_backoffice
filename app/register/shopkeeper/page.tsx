@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Register } from '@/src/components/refactored/auth';
 import { apiClient } from '@/src/lib/api';
 import { API_ROUTES } from '@/src/lib/api-routes';
-import { useAuth } from '@/src/hooks/useAuth';
+import { useAuth } from '@/src/hooks/use-auth';
 
 export default function ShopkeeperRegisterPage() {
 	const router = useRouter();
