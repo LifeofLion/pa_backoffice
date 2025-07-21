@@ -52,8 +52,6 @@ export default function Home() {
           </h1>
         </section>
       </main>
-
-
     </div>
   )
 }

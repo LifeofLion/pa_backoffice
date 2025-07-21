@@ -18,8 +18,6 @@ export default function TrackingClient() {
   // Intégration des fonctionnalités avancées
   const { 
     wsConnected,
-    isMockMode,
-    availableTestPackages,
     searchPackageByTracking
   } = useTracking()
 
@@ -84,28 +82,6 @@ export default function TrackingClient() {
             {t("tracking.trackYourPackage")}
           </h1>
 
-          {/* Bannière mode développement - style original */}
-          {isMockMode && availableTestPackages.length > 0 && (
-            <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg">
-              <div className="flex items-center mb-2">
-                <Package className="h-4 w-4 mr-2 text-gray-500" />
-                <strong className="text-gray-700">Mode développement actif</strong>
-                <span className="ml-2 text-gray-500">- Colis de test disponibles :</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {availableTestPackages.map((trackingNumber) => (
-                  <button
-                    key={trackingNumber}
-                    onClick={() => handleTestPackageClick(trackingNumber)}
-                    className="px-3 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
-                  >
-                    {trackingNumber}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Formulaire de recherche */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,7 +120,6 @@ export default function TrackingClient() {
                 <div className="flex items-center">
                   <Wifi className="h-4 w-4 mr-1" />
                   <span>Connecté - Mises à jour en temps réel</span>
-                  {isMockMode && <span className="ml-2">(Mode simulation)</span>}
                 </div>
               ) : (
                 <div className="flex items-center">

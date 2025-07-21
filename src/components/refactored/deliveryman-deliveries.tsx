@@ -103,7 +103,7 @@ export default function DeliverymanDeliveries() {
         
         const deliveryItem: Delivery = {
           id: livraison.id,
-          announceName: livraison.annonce?.title || livraison.colis?.[0]?.contentDescription || `Livraison #${livraison.id}`,
+          announceName: livraison.annonce?.title || livraison.colis?.[0]?.description || `Livraison #${livraison.id}`,
           image: "/placeholder.svg",
           whereTo: livraison.dropoffLocation || "Adresse de livraison",
           pickupLocation: livraison.pickupLocation || "Point de retrait",

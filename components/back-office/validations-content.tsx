@@ -52,26 +52,43 @@ export function ValidationsContent() {
 
   // Charger toutes les justifications
   const loadJustifications = async (forceReload = false) => {
+    console.log('📊 [CHARGEMENT] Début du chargement des justifications, forceReload:', forceReload);
     setLoading(true);
     try {
       // 🚀 FORCE RELOAD: Ajouter timestamp pour éviter le cache
       const timestamp = forceReload ? `?_t=${Date.now()}` : '';
-      const response = await apiClient.get<JustificationPiecesApiResponse>(`/justification-pieces/all${timestamp}`);
+      const endpoint = `/justification-pieces/all${timestamp}`;
+      console.log('🌐 [CHARGEMENT] Appel API vers:', endpoint);
+      const response = await apiClient.get<JustificationPiecesApiResponse>(endpoint);
       
-      console.log('🔍 Response brute:', response);
+      console.log('📥 [CHARGEMENT] Réponse API reçue:', response);
+      console.log('📊 [CHARGEMENT] Type de réponse:', typeof response, 'Array?', Array.isArray(response));
       
       // Extraire les données selon le format de réponse
       let rawData: JustificationPieceData[] = [];
+      console.log('🔍 [CHARGEMENT] Extraction des données...');
       if (Array.isArray(response)) {
         rawData = response;
+        console.log('📋 [CHARGEMENT] Données extraites directement (array):', rawData.length, 'éléments');
       } else if (response && Array.isArray(response.data)) {
         rawData = response.data;
+        console.log('📋 [CHARGEMENT] Données extraites de response.data:', rawData.length, 'éléments');
       } else {
-        console.warn('🔍 Structure de données inattendue:', response);
+        console.warn('⚠️ [CHARGEMENT] Structure de données inattendue:', response);
         rawData = [];
       }
       
-      console.log('🔍 Raw data:', rawData);
+      console.log('📊 [CHARGEMENT] Données brutes à transformer:', rawData.length, 'justifications');
+      rawData.forEach((item, index) => {
+        console.log(`📄 [CHARGEMENT] Item ${index + 1}:`, {
+          id: item.id,
+          utilisateur_id: item.utilisateur_id,
+          document_type: item.document_type,
+          account_type: item.account_type,
+          verification_status: item.verification_status,
+          user_email: item.utilisateur?.email
+        });
+      });
       
       // Transformer les données pour correspondre à l'interface frontend
       const transformedData: JustificationPieceTransformed[] = rawData.map((item: JustificationPieceData) => {
@@ -155,17 +172,35 @@ export function ValidationsContent() {
         return transformed;
       });
       
-      console.log('🔍 Données transformées:', transformedData);
+      console.log('✅ [CHARGEMENT] Transformation terminée:', transformedData.length, 'justifications');
+      console.log('📊 [CHARGEMENT] Répartition par statut:', {
+        pending: transformedData.filter(j => j.verification_status === 'pending').length,
+        verified: transformedData.filter(j => j.verification_status === 'verified').length,
+        rejected: transformedData.filter(j => j.verification_status === 'rejected').length
+      });
+      console.log('📊 [CHARGEMENT] Répartition par type de compte:', {
+        livreur: transformedData.filter(j => j.account_type === 'livreur').length,
+        prestataire: transformedData.filter(j => j.account_type === 'prestataire').length,
+        commercant: transformedData.filter(j => j.account_type === 'commercant').length
+      });
+      
       setJustifications(transformedData);
       setFilteredJustifications(transformedData);
+      console.log('💾 [CHARGEMENT] État mis à jour avec', transformedData.length, 'justifications');
     } catch (error) {
-      console.error('❌ Error loading justifications:', error);
+      console.error('❌ [CHARGEMENT] Erreur lors du chargement des justifications:', error);
+      console.error('❌ [CHARGEMENT] Détails de l\'erreur:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
       toast({
         variant: "destructive",
         title: "Erreur",
         description: getErrorMessage(error)
       });
     } finally {
+      console.log('🏁 [CHARGEMENT] Fin du chargement - Arrêt du loading');
       setLoading(false);
     }
   };
@@ -201,11 +236,25 @@ export function ValidationsContent() {
   const handleReviewSubmit = async () => {
     if (!selectedJustification) return;
 
+    console.log('🚀 [FRONTEND] Début du processus de validation/rejet');
+    console.log('📄 [FRONTEND] Document sélectionné:', {
+      id: selectedJustification.id,
+      utilisateur_id: selectedJustification.utilisateur_id,
+      document_type: selectedJustification.document_type,
+      account_type: selectedJustification.account_type,
+      verification_status: selectedJustification.verification_status,
+      user_name: selectedJustification.user_name,
+      user_email: selectedJustification.user_email
+    });
+    console.log('⚡ [FRONTEND] Action demandée:', reviewAction);
+    console.log('💬 [FRONTEND] Commentaires:', reviewComments);
+
     // 🔍 VALIDATION FRONTEND avant envoi
     const reviewData: JustificationReviewRequest = { comments: reviewComments };
     const validationErrors = FrontendValidators.validateJustificationReviewRequest(reviewData);
     
     if (validationErrors.length > 0) {
+      console.log('❌ [FRONTEND] Erreurs de validation:', validationErrors);
       toast({
         variant: "destructive",
         title: "Erreur de validation",
@@ -214,53 +263,72 @@ export function ValidationsContent() {
       return;
     }
 
+    console.log('✅ [FRONTEND] Validation frontend réussie');
     setProcessing(true);
     try {
       const endpoint = reviewAction === 'verify' 
         ? `/justification-pieces/verify/${selectedJustification.id}`
         : `/justification-pieces/reject/${selectedJustification.id}`;
       
-      console.log('🔍 Envoi validation vers:', endpoint);
+      console.log('🌐 [FRONTEND] Envoi requête vers endpoint:', endpoint);
+      console.log('📤 [FRONTEND] Données envoyées:', reviewData);
       const response = await apiClient.put<JustificationVerifyApiResponse>(endpoint, reviewData);
-      console.log('🔍 Réponse backend:', response);
+      console.log('📥 [FRONTEND] Réponse backend reçue:', response);
       
       // Gérer différents types de réponses avec le bon typage
       let successMessage = `Document ${reviewAction === 'verify' ? 'approuvé' : 'rejeté'} avec succès`;
       
+      console.log('🔍 [FRONTEND] Analyse de la réponse backend...');
       if (response && response.message) {
         successMessage = response.message;
+        console.log('📝 [FRONTEND] Message du backend:', response.message);
       }
       
       // Cas spécial : auto-validation multiple
       if (response.data && typeof response.data === 'object' && 'validatedDocuments' in response.data) {
         successMessage = `${response.data.validatedDocuments} document(s) auto-validé(s) (rôle déjà existant)`;
+        console.log('🔄 [FRONTEND] Auto-validation détectée:', response.data.validatedDocuments, 'documents');
+        console.log('💡 [FRONTEND] Raison:', response.data.reason);
+      } else {
+        console.log('🆕 [FRONTEND] Validation normale - Nouveau rôle créé');
       }
       
+      console.log('✅ [FRONTEND] Message de succès final:', successMessage);
       toast({
         title: "Succès",
         description: successMessage,
         variant: "default"
       });
 
+      console.log('🔒 [FRONTEND] Fermeture de la boîte de dialogue');
       setReviewDialogOpen(false);
       setReviewComments('');
       
       // 🚀 IMPORTANT: Forcer le rechargement des données avec délai pour synchronisation
-      console.log('🔄 Rechargement des données...');
+      console.log('🔄 [FRONTEND] Démarrage du rechargement des données...');
       
       // Attendre un délai pour que le backend se synchronise
+      console.log('⏳ [FRONTEND] Attente de 1 seconde pour synchronisation backend...');
       setTimeout(async () => {
+        console.log('🔄 [FRONTEND] Rechargement des justifications...');
         await loadJustifications(true);
+        console.log('✅ [FRONTEND] Rechargement terminé');
       }, 1000);
       
     } catch (error) {
-      console.error('❌ Error processing justification:', error);
+      console.error('❌ [FRONTEND] Erreur lors du traitement de la justification:', error);
+      console.error('❌ [FRONTEND] Détails de l\'erreur:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
       toast({
         variant: "destructive",
         title: "Erreur",
         description: getErrorMessage(error)
       });
     } finally {
+      console.log('🏁 [FRONTEND] Fin du processus - Arrêt du loading');
       setProcessing(false);
     }
   };
@@ -612,4 +680,4 @@ export function ValidationsContent() {
       </Dialog>
     </div>
   );
-} 
+}

@@ -52,7 +52,6 @@ export default function TrackingDetailClient({ id }: { id: string }) {
     livePosition,
     eta,
     wsConnected,
-    isMockMode,
     searchPackageByTracking,
     reportIssue
   } = useTracking()
@@ -249,7 +248,6 @@ export default function TrackingDetailClient({ id }: { id: string }) {
                     <div className="flex items-center">
                       <Wifi className="h-3 w-3 mr-1" />
                       <span>Temps réel</span>
-                      {isMockMode && <span className="ml-1">(Simulation)</span>}
                     </div>
                   ) : (
                     <div className="flex items-center">
@@ -350,7 +348,7 @@ export default function TrackingDetailClient({ id }: { id: string }) {
                 </button>
               </div>
               <button 
-                onClick={() => reportIssue && reportIssue({ type: 'general', description: 'Problème signalé depuis l\'interface' })}
+                onClick={() => reportIssue && reportIssue({ type: 'other', description: 'Problème signalé depuis l\'interface' })}
                 className="flex items-center text-red-500 hover:text-red-600"
               >
                 <AlertCircle className="h-5 w-5 mr-2" />
