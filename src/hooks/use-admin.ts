@@ -486,6 +486,56 @@ export function useAdmin() {
 	}, [handleAsync]);
 
 	// ========================================================================
+	// GESTION COMMERÇANTS - FONCTIONNALITÉS DE VALIDATION
+	// ========================================================================
+
+	const getUnverifiedShopkeepers = useCallback(async () => {
+		return handleAsync(async () => {
+			const response: any = await apiClient.get(
+				API_ROUTES.SHOPKEEPER.UNVERIFIED
+			);
+			return Array.isArray(response.commercants)
+				? response.commercants
+				: [];
+		}, 'Erreur lors du chargement des commerçants non vérifiés');
+	}, [handleAsync]);
+
+	const getVerifiedShopkeepers = useCallback(async () => {
+		return handleAsync(async () => {
+			const response: any = await apiClient.get(
+				API_ROUTES.SHOPKEEPER.VERIFIED
+			);
+			return Array.isArray(response.commercants)
+				? response.commercants
+				: [];
+		}, 'Erreur lors du chargement des commerçants vérifiés');
+	}, [handleAsync]);
+
+	const verifyShopkeeper = useCallback(
+		async (id: string) => {
+			return handleAsync(async () => {
+				const response = await apiClient.put(
+					API_ROUTES.SHOPKEEPER.VERIFY(id)
+				);
+				return response;
+			}, 'Erreur lors de la vérification du commerçant');
+		},
+		[handleAsync]
+	);
+
+	const rejectShopkeeper = useCallback(
+		async (id: string) => {
+			return handleAsync(async () => {
+				const response = await apiClient.put(
+					API_ROUTES.SHOPKEEPER.REJECT(id)
+				);
+				return response;
+			}, 'Erreur lors du rejet du commerçant');
+		},
+		[handleAsync]
+	);
+
+	// ========================================================================
 	// NOUVELLES FONCTIONNALITÉS - MODE MOCK/OPTIONNEL
 	// ========================================================================
 
@@ -640,6 +690,12 @@ export function useAdmin() {
 		getAllPrestataires,
 		getAllServiceTypes,
 		getServiceAnalytics,
+
+		// Gestion commerçants ✅ FONCTIONNEL
+		getUnverifiedShopkeepers,
+		getVerifiedShopkeepers,
+		verifyShopkeeper,
+		rejectShopkeeper,
 
 		// Actions (NON-OP pour l'instant)
 		validateService,

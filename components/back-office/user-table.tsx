@@ -15,13 +15,11 @@ interface User {
 	phone: string;
 	status: string;
 	statusColor: string;
-	justificatives: string[];
 	roles?: string[];
 }
 
 interface UserTableProps {
 	data: User[];
-	showJustificative: boolean;
 	onStatusClick: (user: User) => void;
 	onToggleStatus: (userId: number) => void;
 	currentUserId?: number; // ID de l'utilisateur connecté pour empêcher l'auto-désactivation
@@ -55,7 +53,6 @@ const getRoleBadgeVariant = (role: string) => {
 
 export function UserTable({
 	data,
-	showJustificative,
 	onStatusClick,
 	onToggleStatus,
 	currentUserId,
@@ -121,11 +118,7 @@ export function UserTable({
 						<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
 							{t('admin.userStatus')}
 						</th>
-						{showJustificative && (
-							<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-								{t('admin.userJustificative')}
-							</th>
-						)}
+
 						<th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
 							{t('admin.action')}
 						</th>
@@ -217,23 +210,7 @@ export function UserTable({
 									)}
 								</div>
 							</td>
-							{showJustificative && (
-								<td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-									{user.justificatives.length > 0 ? (
-										<Badge
-											variant='outline'
-											className='text-xs'
-										>
-											{user.justificatives.length}{' '}
-											document(s)
-										</Badge>
-									) : (
-										<span className='text-gray-400'>
-											Aucun document
-										</span>
-									)}
-								</td>
-							)}
+
 							<td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
 								<Button
 									variant='outline'

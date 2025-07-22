@@ -427,7 +427,6 @@ export function UsersContent() {
 						</h2>
 						<UserTable
 							data={getUsersByRole('admin')}
-							showJustificative={false}
 							onStatusClick={() => {}}
 							onToggleStatus={handleToggleUserStatus}
 							currentUserId={currentUser?.id}
@@ -444,7 +443,6 @@ export function UsersContent() {
 						</h2>
 						<UserTable
 							data={getUsersByRole('livreur')}
-							showJustificative={true}
 							onStatusClick={handleStatusClick}
 							onToggleStatus={handleToggleUserStatus}
 							currentUserId={currentUser?.id}
@@ -461,7 +459,6 @@ export function UsersContent() {
 						</h2>
 						<UserTable
 							data={getUsersByRole('prestataire')}
-							showJustificative={true}
 							onStatusClick={handleStatusClick}
 							onToggleStatus={handleToggleUserStatus}
 							currentUserId={currentUser?.id}
@@ -478,7 +475,6 @@ export function UsersContent() {
 						</h2>
 						<UserTable
 							data={getUsersByRole('commercant')}
-							showJustificative={true}
 							onStatusClick={handleStatusClick}
 							onToggleStatus={handleToggleUserStatus}
 							currentUserId={currentUser?.id}
@@ -500,7 +496,6 @@ export function UsersContent() {
 						</div>
 						<UserTable
 							data={getUsersByRole('client')}
-							showJustificative={false}
 							onStatusClick={() => {}}
 							onToggleStatus={handleToggleUserStatus}
 							currentUserId={currentUser?.id}
