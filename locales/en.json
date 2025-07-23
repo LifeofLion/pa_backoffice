@@ -296,6 +296,7 @@
 		"pleaseEnterTrackingId": "Please enter a Tracking ID",
 		"trackPackage": "Track Package",
 		"recentlyTracked": "Recently Tracked",
+		"noRecentPackages": "No recent packages",
 		"inTransit": "In Transit",
 		"delivered": "Delivered",
 		"pending": "Pending",
@@ -522,6 +523,7 @@
 		"logout": "Logout",
 		"profile": "Profile",
 		"search": "Search...",
+		"noServices": "No services available",
 		"totalClients": "Total Clients",
 		"deliveriesThisWeek": "Deliveries This Week",
 		"totalPendingDeliveries": "Total Pending Deliveries",
@@ -695,6 +697,7 @@
 		"siretNumber": "SIRET Number",
 		"sirenNumber": "SIREN Number",
 		"enterSirenNumber": "Enter your SIREN number",
+		"enterSiretAndSiren": "Enter your SIRET and SIREN numbers",
 		"editYourJustificativePieces": "Edit Your Supporting Documents",
 		"pendingThanksTitle": "Thank you! Your shopkeeper account request is pending.",
 		"pendingMessageLine1": "We have received your shopkeeper account request!!",
@@ -719,6 +722,7 @@
 		"title": "All Available Contracts",
 		"getStarted": "Get Started",
 		"startFreeTrial": "Start Free Trial",
+		"subscribeToStart": "Subscribe to start",
 		"renew": "Renew"
 	},
 	"translation": {

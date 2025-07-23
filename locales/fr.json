@@ -177,6 +177,7 @@
 		"continueToDetails": "Continuer vers les détails",
 		"packageDetails": "Détails du colis",
 		"addPhoto": "Ajouter une photo (format .jpg)",
+		"transport_colis": "Transport de colis",
 		"noImage": "Aucune image",
 		"editPhoto": "Modifier la photo",
 		"goBackToAnnouncements": "Retour aux annonces",
@@ -344,6 +345,7 @@
 		"pleaseEnterTrackingId": "Veuillez entrer un ID de suivi",
 		"trackPackage": "Suivre le colis",
 		"recentlyTracked": "Récemment suivis",
+		"noRecentPackages": "Aucun colis récent",
 		"inTransit": "En transit",
 		"delivered": "Livré",
 		"pending": "En attente",
@@ -561,7 +563,9 @@
 	"deliveryman": {
 		"dashboard": "Tableau de bord",
 		"announcements": "Annonces",
-		"deliveries": "Livraisons",
+		"deliveries": {
+			"announcementType": "Type d'annonce"
+		},
 		"calendar": "Calendrier",
 		"notifications": "Notifications",
 		"messages": "Messages",
@@ -570,6 +574,7 @@
 		"logout": "Déconnexion",
 		"profile": "Profil",
 		"search": "Rechercher...",
+		"noServices": "Aucun service disponible",
 		"totalClients": "Total Clients",
 		"deliveriesThisWeek": "Livraisons cette semaine",
 		"totalPendingDeliveries": "Total des livraisons en attente",
@@ -743,6 +748,7 @@
 		"siretNumber": "Numéro SIRET",
 		"sirenNumber": "Numéro SIREN",
 		"enterSirenNumber": "Entrez votre numéro SIREN",
+		"enterSiretAndSiren": "Entrez vos numéros SIRET et SIREN",
 		"editYourJustificativePieces": "Modifier vos pièces justificatives",
 		"pendingThanksTitle": "Merci ! Votre demande de compte commerçant est en attente.",
 		"pendingMessageLine1": "Nous avons bien reçu votre demande de compte commerçant !!",
@@ -767,6 +773,7 @@
 		"title": "Tous les contrats disponibles",
 		"getStarted": "Commencer",
 		"startFreeTrial": "Commencer l'essai gratuit",
+		"subscribeToStart": "Abonnez-vous pour commencer",
 		"renew": "Renouveler"
 	},
 	"translation": {
@@ -1424,6 +1431,13 @@
 		"updateService": "Mettre à jour le service",
 		"serviceTypeName": "Nom du type de service",
 		"serviceTypeDescription": "Description du type de service"
+	},
+	"delivery": {
+		"noDeliveries": "Aucune livraison disponible",
+		"createFirst": "Créer votre première livraison"
+	},
+	"search": {
+		"searchDeliveries": "Rechercher des livraisons"
 	},
 	"validations": {
 		"roles": {

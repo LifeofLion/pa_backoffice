@@ -684,12 +684,13 @@ export default function CreateAnnouncement() {
                   {t("announcements.selectDeliveryDate")}
                 </label>
                 <input
-                  type="date"
-                  id="deliveryDate"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
+                type="date"
+                id="deliveryDate"
+                value={deliveryDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
               </div>
 
               <div className="flex justify-between pt-4">
@@ -882,4 +883,4 @@ export default function CreateAnnouncement() {
       </main>
     </ClientLayout>
   )
-} 
+}
