@@ -19,6 +19,7 @@ import {
 	CheckSquare,
 	Languages,
 	Megaphone,
+	Warehouse,
 } from 'lucide-react';
 import LanguageSelector from '@/components/language-selector';
 import { useLanguage } from '@/components/language-context';
@@ -102,6 +103,12 @@ export default function BackOfficeLayout({
 			label: t('admin.translations'),
 			key: 'translations',
 			icon: Languages,
+		},
+		{
+			href: '/admin/warehouses',
+			label: t('admin.warehouses'),
+			key: 'warehouses',
+			icon: Warehouse,
 		},
 	];
 

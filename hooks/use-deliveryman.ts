@@ -95,7 +95,7 @@ export function useDeliveryman() {
       console.log('📦 Livraisons livreur:', response)
 
       // Transformer les données pour le frontend
-      const transformedLivraisons: Livraison[] = response.map((livraison: any) => ({
+      const transformedLivraisons: Livraison[] = (response as any[]).map((livraison: any) => ({
         id: livraison.id.toString(),
         status: livraison.status,
         pickupLocation: livraison.pickupLocation,
@@ -139,7 +139,7 @@ export function useDeliveryman() {
       const response = await apiClient.get('/livreurs/available-livraisons')
       console.log('📦 Livraisons disponibles:', response)
 
-      const transformedAvailable: AvailableLivraison[] = response.map((livraison: any) => ({
+      const transformedAvailable: AvailableLivraison[] = (response as any[]).map((livraison: any) => ({
         id: livraison.id.toString(),
         pickupLocation: livraison.pickupLocation,
         dropoffLocation: livraison.dropoffLocation,

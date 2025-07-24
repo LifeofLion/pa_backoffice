@@ -2,11 +2,11 @@
 
 import { useRef, useEffect, useState } from "react"
 import Image from "next/image"
-import { Send, Search, ArrowLeft, Loader2, Plus } from "lucide-react"
+import { Send, Search, ArrowLeft, Loader2 } from "lucide-react"
 import { useLanguage } from "@/components/language-context"
 import { useMessaging } from "@/src/hooks/use-messaging"
 import { ConversationFilter } from "@/src/services/messaging/types"
-import { UserSelector } from "./user-selector"
+
 import { cn } from "@/lib/utils"
 
 // =============================================================================
@@ -21,9 +21,9 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
   const { t } = useLanguage()
   const [newMessage, setNewMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
-  const [showUserSelector, setShowUserSelector] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout>()
+  const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   
   const {
     conversations,
@@ -31,18 +31,11 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
     selectedConversationId,
     isConnected,
     typingUsers,
-    activeFilter,
     searchQuery,
-    userConfig,
-    availableUsers,
-    isLoadingUsers,
     sendMessage,
     selectConversation,
-    setActiveFilter,
     setSearchQuery,
     notifyTyping,
-    loadAvailableUsers,
-    startConversation,
   } = useMessaging()
 
   // Gérer l'envoi de message
@@ -68,11 +61,6 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false)
     }, 2000)
-  }
-
-  // Gérer la sélection d'un utilisateur pour nouvelle conversation
-  const handleSelectUser = (userId: number, user: any) => {
-    startConversation(userId, user)
   }
 
   // Scroll automatique vers le bas
@@ -136,17 +124,10 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
               selectedConversationId ? "hidden md:flex" : "flex"
             )}
           >
-            {/* Header avec bouton nouvelle conversation */}
+            {/* Header */}
             <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{t("messages.conversations")}</h3>
-                <button
-                  onClick={() => setShowUserSelector(true)}
-                  className="flex items-center px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("messages.newConversation")}
-                </button>
               </div>
 
               {/* Recherche */}
@@ -161,25 +142,7 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               </div>
 
-              {/* Filtres selon le rôle */}
-              {userConfig.availableFilters.length > 1 && (
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  {userConfig.availableFilters.map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setActiveFilter(filter)}
-                      className={cn(
-                        "flex-1 px-4 py-2 text-sm rounded-md transition-colors",
-                        activeFilter === filter 
-                          ? "bg-white shadow-sm" 
-                          : "hover:bg-gray-200"
-                      )}
-                    >
-                      {t(`messages.filter.${filter}`)}
-                    </button>
-                  ))}
-                </div>
-              )}
+
             </div>
 
             {/* Conversations */}
@@ -254,13 +217,6 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
                     className="mx-auto mb-4 opacity-50"
                   />
                   <p className="mb-4">{t("messages.noConversations")}</p>
-                  <button
-                    onClick={() => setShowUserSelector(true)}
-                    className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("messages.startFirstConversation")}
-                  </button>
                 </div>
               )}
             </div>
@@ -282,13 +238,6 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
                     className="mx-auto mb-4 opacity-50"
                   />
                   <p className="mb-4">{t("messages.selectConversation")}</p>
-                  <button
-                    onClick={() => setShowUserSelector(true)}
-                    className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("messages.newConversation")}
-                  </button>
                 </div>
               </div>
             ) : (
@@ -338,7 +287,7 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {selectedConversation.messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
-                      <p>{t("messages.startConversation")}</p>
+                      <p>{t("messages.noMessages")}</p>
                     </div>
                   ) : (
                     selectedConversation.messages.map((message) => (
@@ -411,16 +360,6 @@ export function UnifiedMessages({ className }: UnifiedMessagesProps) {
         </div>
       </div>
 
-      {/* Modal de sélection d'utilisateur */}
-      <UserSelector
-        isOpen={showUserSelector}
-        onClose={() => setShowUserSelector(false)}
-        availableUsers={availableUsers}
-        isLoading={isLoadingUsers}
-        onSelectUser={handleSelectUser}
-        onLoadUsers={loadAvailableUsers}
-        userConfig={userConfig}
-      />
     </>
   )
-} 
+}

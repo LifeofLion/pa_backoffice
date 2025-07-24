@@ -39,16 +39,13 @@ export { useApi, useGet, usePost, usePut, useDelete } from './useApi';
 // ✅ NOUVEAUX HOOKS POUR LES ENDPOINTS ADMIN
 export { useContracts } from './use-contracts';
 export { useSubscriptions } from './use-subscriptions';
+export { useWarehouses } from './use-warehouses';
 
 // Types et interfaces communs
 export type {
 	// Types de contrats
 	ContractData,
 	ContractsStats,
-
-	// Types d'abonnements
-	SubscriptionData,
-	SubscriptionsStats,
 } from './use-contracts';
 
 export type {

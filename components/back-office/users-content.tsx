@@ -298,16 +298,6 @@ export function UsersContent() {
 				getAllUserRoles(user).includes('guest')
 		).length;
 
-		console.log('🔍 Debug comptage utilisateurs (multi-rôles):', {
-			total: users.length,
-			livreurs,
-			prestataires,
-			commercants,
-			admins,
-			clients,
-			Note: 'Les utilisateurs peuvent apparaître dans plusieurs catégories',
-		});
-
 		// Debug des utilisateurs multi-rôles
 		const multiRoleUsers = users.filter(
 			(user) => getAllUserRoles(user).length > 1
